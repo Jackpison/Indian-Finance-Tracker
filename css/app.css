@@ -544,3 +544,27 @@ html{scroll-behavior:smooth}
   .ptitle span{color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis}
   .bar .ph:not(.phu){display:none}
 }
+
+/* ===== alive: 3D bars and donut, staggered rows, moving progress, lifting cards ===== */
+.tabs .ver{margin-left:auto;font-style:normal;font-size:11px;font-weight:600;letter-spacing:.02em;padding:1px 7px;border-radius:99px;background:rgba(127,127,127,.18);color:inherit;opacity:.8}
+.b-in{fill:url(#g3-in)}.b-out{fill:url(#g3-out)}
+.b-in,.b-out{filter:drop-shadow(3px 5px 3px rgba(0,0,0,.22));transition:filter .25s,transform .25s}
+.b-in:hover,.b-out:hover{filter:drop-shadow(4px 8px 5px rgba(0,0,0,.32)) brightness(1.08)}
+.b-out{animation-delay:.07s}
+svg[aria-label=Breakdown]{transform:perspective(760px) rotateX(34deg);filter:drop-shadow(0 4px 0 rgba(0,0,0,.20)) drop-shadow(0 14px 12px rgba(0,0,0,.28));animation:donin 1.1s cubic-bezier(.2,.8,.2,1) backwards;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+svg[aria-label=Breakdown]:hover{transform:perspective(760px) rotateX(22deg) scale(1.03)}
+@keyframes donin{from{opacity:0;transform:perspective(760px) rotateX(34deg) rotateZ(-140deg) scale(.55)}}
+.seg{transition:opacity .2s,stroke-width .2s}
+.prog>i{background-image:linear-gradient(110deg,rgba(255,255,255,.28) 25%,transparent 25% 50%,rgba(255,255,255,.28) 50% 75%,transparent 75%);background-size:18px 18px;animation:hw .9s cubic-bezier(.2,.8,.2,1) backwards,stripe 1.4s linear infinite}
+@keyframes stripe{to{background-position:18px 0}}
+.lr,.tbl tbody tr{animation:rowin .5s cubic-bezier(.2,.8,.2,1) backwards}
+.lr:nth-child(2),.tbl tbody tr:nth-child(1){animation-delay:.03s}.lr:nth-child(3),.tbl tbody tr:nth-child(2){animation-delay:.07s}.lr:nth-child(4),.tbl tbody tr:nth-child(3){animation-delay:.11s}.lr:nth-child(5),.tbl tbody tr:nth-child(4){animation-delay:.15s}.lr:nth-child(6),.tbl tbody tr:nth-child(5){animation-delay:.19s}.lr:nth-child(n+7),.tbl tbody tr:nth-child(n+6){animation-delay:.23s}
+@keyframes rowin{from{opacity:0;transform:translateX(-10px)}}
+.stat .sv,.txsum .sv,.kpi .val{animation:svin .7s cubic-bezier(.2,.8,.2,1) backwards}
+@keyframes svin{from{opacity:0;transform:translateY(8px) scale(.96)}}
+.stat,.card.kpi,.txsum>*{transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s}
+.stat:hover,.card.kpi:hover,.txsum>*:hover{transform:translateY(-3px);box-shadow:0 14px 28px -16px rgba(0,0,0,.35)}
+.tg.ok::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:6px;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35;transform:scale(1.5)}}
+.noanim .lr,.noanim .tbl tbody tr,.noanim .stat .sv,.noanim .txsum .sv,.noanim .kpi .val,.noanim svg[aria-label=Breakdown]{animation:none}
+@media(prefers-reduced-motion:reduce){.prog>i,.tg.ok::before{animation:none}.stat:hover,.card.kpi:hover{transform:none}}

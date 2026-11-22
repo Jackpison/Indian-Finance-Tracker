@@ -274,7 +274,7 @@ const HEAD={overview:['Overview','Your money at a glance'],bal:['Balance','What 
 function moveInd(){const tb=$('#tabs'),b=tb.querySelector('[aria-selected=true]'),i=tb.querySelector('.ind');if(b&&i){i.style.left=b.offsetLeft+'px';i.style.width=b.offsetWidth+'px'}}
 function renderChrome(){
   const tb=$('#tabs');
-  if(!tb.dataset.ready){tb.innerHTML=TABS.map(([k,l,ic,g])=>(g?`<div class="navh">${g}</div>`:'')+`<button role="tab" data-act="view" data-v="${k}">${svg(ic,17)}<span>${l}</span></button>`).join('')+'<i class="ind"></i>';tb.dataset.ready='1';const br=document.querySelector('.top .brand');if(br){const c=br.cloneNode(true);c.classList.add('sidebrand');tb.prepend(c)}}
+  if(!tb.dataset.ready){tb.innerHTML=TABS.map(([k,l,ic,g])=>(g?`<div class="navh">${g}</div>`:'')+`<button role="tab" data-act="view" data-v="${k}">${svg(ic,17)}<span>${l}</span>${k==='upd'?`<em class="ver">v${VERSION}</em>`:''}</button>`).join('')+'<i class="ind"></i>';tb.dataset.ready='1';const br=document.querySelector('.top .brand');if(br){const c=br.cloneNode(true);c.classList.add('sidebrand');tb.prepend(c)}}
   tb.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.v===S.view)));moveInd();
   const dk=(k,l)=>`<button class="${S.view===k?'on':''}" data-act="view" data-v="${k}" aria-label="${l}">${svg(ICON[k],20)}<span>${l}</span></button>`;
   $('#dock').innerHTML=dk('overview','Home')+dk('tx','Activity')+`<button class="fab" data-act="fab" aria-label="Add or import">${svg(ICON.plus,24)}</button>`+dk('inv','Invest')+`<button data-act="more" class="${['cards','rec','up','vault','ana'].includes(S.view)?'on':''}" aria-label="More">${svg(ICON.dots,20)}<span>More</span></button>`;
