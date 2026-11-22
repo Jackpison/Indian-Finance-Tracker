@@ -34,7 +34,7 @@ jobs:
           if grep -nE "https?://" index.html css/app.css js/app.js js/theme.js | grep -vE "w3.org|flaticon.com|github.com" ; then
             echo "::error::External URL found; the app must make no third-party requests"; exit 1
           fi
-          if grep -nE "\beval\(|new Function\(|document\.write\(|\bon(click|error|load)=" index.html js/app.js js/theme.js; then
+          if grep -nE "\beval\(|new Function\(|document\.write\(|\son(click|error|load|input|change)=[\"']" index.html js/app.js js/theme.js; then
             echo "::error::Unsafe pattern found"; exit 1
           fi
 
