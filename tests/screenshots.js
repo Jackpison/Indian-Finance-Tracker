@@ -14,7 +14,7 @@ await p.click('#tabs [data-v=tx]');await p.waitForTimeout(800);await p.click('.t
 await p.click('#tabs [data-v=bal]');await p.waitForTimeout(900);await p.screenshot({path:D+'balance.png'});
 await p.click('#tabs [data-v=overview]');await p.waitForTimeout(500);
 await p.click('[data-act=settings]');await p.waitForSelector('.setp');await p.click('[data-act=guide]');await p.waitForTimeout(500);await p.screenshot({path:D+'guide.png'});
-p=await mk(1360,900,'dark');await p.click('[data-theme-set=dark]').catch(()=>{});await p.waitForTimeout(1200);await p.screenshot({path:D+'overview-dark.png'});
+p=await mk(1360,900,'dark');await p.waitForTimeout(1200);await p.screenshot({path:D+'overview-dark.png'});
 await p.click('#tabs [data-v=ana]');await p.waitForTimeout(2200);await p.screenshot({path:D+'analytics-dark.png'});
 p=await mk(390,844,'light',true);await p.screenshot({path:D+'mobile-overview.png'});
 await p.evaluate(()=>document.querySelector('#tabs [data-v=ana]').click());await p.waitForTimeout(2000);await p.screenshot({path:D+'mobile-analytics.png'});

@@ -518,3 +518,14 @@ html{scroll-behavior:smooth}
 .reviewq{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;margin-bottom:14px;border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}
 .reviewq span{display:block;color:var(--muted);font-size:13px;margin-top:2px}
 .chk{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;line-height:1.4}.chk input{margin-top:3px}
+
+/* ---- Updates page only: icon tile head, status pill, roomy cards ---- */
+.phu{align-items:center;gap:14px}.phu>div:not(.grow){display:flex;flex-direction:column;gap:2px}.phu h1{font-size:26px}
+.phu .tile{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;color:#fff;background:#14B8A6;box-shadow:0 8px 18px -10px #14B8A6}
+.phu .tg{padding:5px 12px;font-size:13px;font-weight:600;border:1px solid currentColor;background:none;border-radius:99px}
+.setp .scard{border-radius:22px}.setp .srow{padding:18px 22px}
+
+/* single sun/moon theme switch */
+#themebtn .ti-sun,#themebtn .ti-moon{display:grid;place-items:center}
+#themebtn .ti-sun{display:none}#themebtn.dark .ti-sun{display:grid}#themebtn.dark .ti-moon{display:none}
+.phu~.mem{display:none}

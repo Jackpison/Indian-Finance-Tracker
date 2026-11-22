@@ -3,6 +3,12 @@
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Changed
+- Updates page: **Check now** needs no password (it only reads the latest release from GitHub through `update.php`). The password field appears only once a newer version is found, and only **Install** uses it. New page header with status pill and an Update / Changelog switch. Re-upload `deploy/update.php` to your server for this to work.
+- Theme: one sun/moon button replaces the three-way switch; the "match device" option is gone.
+
+### Fixed
+- The update test no longer fails in CI now that the offline shell's service worker answers `version.json` itself.
 
 ## [0.4.0] - 2026-11-22
 ### Added

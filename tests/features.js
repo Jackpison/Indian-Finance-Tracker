@@ -32,6 +32,11 @@ ok(names.filter(n=>/Savings/.test(n)).length===1,'duplicate account merged ('+na
 ok(!names.some(n=>/8487/.test(n))&&names.some(n=>/3892/.test(n)),'deposit from the older statement removed, current one kept');
 await p.click('#tabs [data-v=tx]');await p.fill('#q','COFFEE');await p.waitForTimeout(400);
 ok((await p.$$('.txr')).length===1,'transaction present in both copies is kept once');
+console.log('Theme switch');
+ok((await p.$$('#themebtn')).length===1&&!(await p.$('[data-theme-set]')),'one sun/moon button, no follow-device option');
+const th=()=>p.evaluate(()=>document.documentElement.getAttribute('data-theme'));
+await p.click('#themebtn');await p.waitForTimeout(500);const t1=await th();await p.click('#themebtn');await p.waitForTimeout(500);const t2=await th();
+ok(['light','dark'].includes(t1)&&['light','dark'].includes(t2)&&t1!==t2,'button flips between light and dark ('+t1+' then '+t2+')');
 console.log('Offline shell');
 for(const n of ['sw.js','manifest.webmanifest']){ok(fs.existsSync(path.join(ROOT,n)),n+' exists')}
 JSON.parse(fs.readFileSync(path.join(ROOT,'manifest.webmanifest')));ok(true,'manifest is valid JSON');
