@@ -9,10 +9,15 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Fixed deposits and PPF balances listed in a statement update Investments automatically.
 - Statement dialog shows per-account results and flags files that were already imported.
 - Fees category (debit card fees, SMS charges); interest on FD/RD counts as income; FD bookings and closures count as investments.
+- Transfers between your own accounts: equal and opposite amounts in two accounts within 3 days are matched and marked as Transfers, so they no longer count as spending or income. Runs after every import; Settings has Find transfers and Remove all links; changing a category unlinks the pair.
+- Backup reminder: a banner after a week without a backup (then monthly), with a reminder interval and last backup date in Settings.
 - Parser tests with a fictional ICICI-style sample PDF (`samples/icici-style-statement.pdf`).
 
+### Fixed
+- "New account…" could not be chosen in the import dialog once an account existed.
+
 ### Changed
-- New look: near-black dark theme with blue and green accents, Inter typeface (vendored, no CDN); numbers use Inter with tabular figures.
+- New look: left sidebar, flat cards, near-black dark theme with blue and green accents, Inter typeface (vendored, no CDN).
 - Reference numbers (NEFT/UPI/IMPS ids) are stripped from imported narrations.
 
 ## [0.0.1] - 2026-11-22

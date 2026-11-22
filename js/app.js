@@ -113,13 +113,13 @@ async function deriveKey(pass,salt,iter){const km=await crypto.subtle.importKey(
 async function encStr(key,str){const iv=crypto.getRandomValues(new Uint8Array(12));return{iv:b64(iv),ct:b64(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,TE.encode(str)))}}
 async function decStr(key,r){return TD.decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(r.iv)},key,ub64(r.ct)))}
 async function tryKey(pass,lm){try{const key=await deriveKey(pass,ub64(lm.salt),lm.iter);if(await decStr(key,lm.check)==='ift-ok')return key}catch(e){}return null}
-let lockMeta=null,lockKey=null,autoLockMin=5,booted=false,saveT=null,savingP=Promise.resolve(),pendingRec=null;
+let bk={last:0,every:30,snooze:0,since:0},lockMeta=null,lockKey=null,autoLockMin=5,booted=false,saveT=null,savingP=Promise.resolve(),pendingRec=null;
 const DATA_KEYS=['tx','hold','uploads','goals','vault','members','accts','rules','budgets','cur','order'];
 function snapshot(){if(S.demo)return JSON.stringify({demo:true});const o={};DATA_KEYS.forEach(k=>o[k]=S[k]);return JSON.stringify(o)}
 function applyState(j){if(!j||j.demo){S.demo=true;demo();return}
   Object.assign(S,{tx:[],hold:[],uploads:[],goals:[],vault:[],members:[],accts:[],rules:{},budgets:{}},Object.fromEntries(DATA_KEYS.filter(k=>j[k]!==undefined).map(k=>[k,j[k]])));
   if(!S.members.length)S.members=[{id:'me',name:'Me',color:MCOL[0]}];S.cur=S.cur||'INR';S.demo=false}
-async function saveMeta(){await kvSet('meta',{lock:lockMeta,autoLock:autoLockMin})}
+async function saveMeta(){await kvSet('meta',{lock:lockMeta,autoLock:autoLockMin,bk})}
 function save(){S._rv=(S._rv||0)+1;if(!booted)return;clearTimeout(saveT);saveT=setTimeout(flush,250)}
 async function flush(){clearTimeout(saveT);saveT=null;if(!booted)return;
   if(S.demo&&!lockMeta){savingP=savingP.then(()=>kvDel('state'));return savingP}
@@ -128,7 +128,7 @@ async function flush(){clearTimeout(saveT);saveT=null;if(!booted)return;
   savingP=savingP.then(()=>kvSet('state',rec));return savingP}
 addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flush()});addEventListener('pagehide',()=>{flush()});
 async function boot(){
-  const meta=(await kvGet('meta'))||{};lockMeta=meta.lock||null;autoLockMin=meta.autoLock??5;
+  const meta=(await kvGet('meta'))||{};lockMeta=meta.lock||null;autoLockMin=meta.autoLock??5;bk={...bk,...(meta.bk||{})};
   let rec=await kvGet('state');
   if(!rec){try{const j=JSON.parse(localStorage.getItem(KEY)||'null');if(j&&j.demo===false){rec={enc:false,json:JSON.stringify(j)};await kvSet('state',rec);localStorage.removeItem(KEY)}}catch(e){}}
   if(lockMeta){pendingRec=rec;showLock();return}
@@ -471,7 +471,7 @@ function yoyChart(el,ft,fys){const W=Math.max(320,el.clientWidth),H=330,m={l:54,
   MN.forEach((n,j)=>{const rows=shown.map(f=>[f,ft[f].months[j]]).filter(r=>r[1]).sort((a,b)=>b[1].sp-a[1].sp).slice(0,8);s+=`<rect class="hit" data-x="${x(j)}" x="${x(j)-band/2}" y="${m.t}" width="${band}" height="${H-m.t-m.b}" fill="transparent" data-tip="${esc(`<b>${n}</b><br>`+rows.map(r=>`<span style="color:${col(list.indexOf(r[0]))}">●</span> ${fyLabel(r[0]).replace('FY ','')} ${compact(r[1].sp)}`).join('<br>'))}"/>`});
   el.innerHTML=s+'</svg>';const lg=document.getElementById('ch-yoy-l');if(lg)lg.innerHTML=list.slice().reverse().map(f=>`<button class="ychip ${hide[f]?'off':''}" data-act="yoytog" data-v="${f}"><i style="background:${col(list.indexOf(f))}"></i>${fyLabel(f).replace('FY ','')}</button>`).join('')}
 
-function render(){CH.length=0;renderChrome();const v={ana:anaView,overview,tx:txView,cards,inv,bud,rec,up:uploadsView,goals:goalsView,vault:vaultView}[S.view];$('#main').innerHTML=(S.demo&&S.view!=='overview'?demoBanner():'')+v();after()}
+function render(){CH.length=0;renderChrome();const v={ana:anaView,overview,tx:txView,cards,inv,bud,rec,up:uploadsView,goals:goalsView,vault:vaultView}[S.view];$('#main').innerHTML=(S.demo&&S.view!=='overview'?demoBanner():'')+(S.view==='overview'||S.view==='tx'?bkBanner():'')+v();after()}
 function demoBanner(){return`<div class="banner"><div><b>Sample family data.</b> These are example numbers. Import a bank or credit card statement (PDF, Excel, CSV) or a broker holdings file to replace it with yours.</div><button class="btn primary sm" data-act="import">Import my first file</button></div>`}
 let lastSig='';
 function after(){
@@ -821,6 +821,26 @@ function holdDialog(){const i=S.imp;modal(`<h2>Update investments from ${esc(i.n
   <div class="note" style="margin:12px 0"><b>${i.holds.length}</b> holdings · value ${money(i.holds.reduce((a,h)=>a+h.value,0))}${i.holds.length?'':' — columns were not recognised.'}</div>
   <div class="scroll"><table class="tbl hold"><thead><tr><th>Name</th><th>Type</th><th class="r">Invested</th><th class="r">Value</th></tr></thead><tbody>${i.holds.slice(0,8).map(h=>`<tr><td>${esc(h.name)}</td><td><span class="tag">${h.type}</span></td><td class="r num">${money(h.invested)}</td><td class="r num">${money(h.value)}</td></tr>`).join('')}</tbody></table></div>
   <div class="acts"><button class="btn" data-act="impcancel">Skip</button><button class="btn primary" data-act="holdgo" ${i.holds.length?'':'disabled'}>Update investments</button></div>`)}
+/* ---- transfers between your own accounts ---- */
+function unlinkXf(t){if(!t.xf)return;const p=S.tx.find(x=>x!==t&&x.xf===t.xf);for(const x of p?[t,p]:[t]){x.cat=x.xo||categorize(x.desc,x.amt);delete x.xf;delete x.xo}}
+function fixXf(){const ids=new Set(S.tx.filter(t=>t.xf).map(t=>t.xf));for(const id of ids){const l=S.tx.filter(t=>t.xf===id);if(l.length!==2)for(const t of l)unlinkXf(t)}}
+function matchTransfers(){if(S.demo)return 0;const pool=S.tx.filter(t=>!t.xf&&!t.xn&&Math.abs(t.amt)>=500&&t.cat!=='Investments');
+  const ins=new Map();for(const t of pool)if(t.amt>0){const k=t.amt.toFixed(2);(ins.get(k)||ins.set(k,[]).get(k)).push(t)}
+  const out=pool.filter(t=>t.amt<0).sort((a,b)=>a.d<b.d?-1:1),used=new Set();let n=0;
+  for(const o of out){const l=ins.get((-o.amt).toFixed(2));if(!l)continue;
+    const c=l.filter(i=>!used.has(i.id)&&i.acct!==o.acct&&Math.abs(daysBetween(o.d,i.d))<=3).map(i=>[Math.abs(daysBetween(o.d,i.d)),i]).sort((a,b)=>a[0]-b[0]);
+    if(!c.length||(c.length>1&&c[0][0]===c[1][0]))continue;
+    const i=c[0][1],id=uid();used.add(i.id);for(const t of [o,i]){t.xo=t.cat;t.cat='Transfers';t.xf=id}n++}
+  return n}
+function xfCount(){return S.tx.filter(t=>t.xf).length/2}
+/* ---- backup reminder ---- */
+function bkDays(){return bk.last?Math.floor((Date.now()-bk.last)/864e5):null}
+function bkDue(){if(S.demo||!S.tx.length||!bk.every)return false;if(Date.now()<bk.snooze)return false;
+  if(!bk.last){if(!bk.since){bk.since=Date.now();saveMeta();return false}return Date.now()-bk.since>7*864e5}
+  return Date.now()-bk.last>bk.every*864e5}
+function bkBanner(){if(!bkDue())return'';const d=bkDays();
+  return`<div class="banner" id="bkbn"><div><b>Back up your data.</b> ${d==null?'You have not made a backup yet.':`Your last backup was ${d} day${d===1?'':'s'} ago.`} Everything lives only in this browser, so a cleared cache or a lost device would take it with it.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary sm" data-act="bkdl">Download backup</button><button class="btn sm" data-act="bksnooze">Remind me in a week</button></div></div>`}
+function bkDone(){bk.last=Date.now();bk.snooze=0;saveMeta()}
 function doImport(){const i=S.imp;const wasDemo=S.demo;leaveDemo();
   let acctId=wasDemo?'new':($('#iacct')?$('#iacct').value:'new');const mem=$('#imem').value;
   if(acctId==='new'){const a={id:uid(),name:($('#inm')?.value||'').trim()||(i.acctType==='card'?'Credit card':'Bank account'),type:$('#ity')?.value||i.acctType,member:mem};S.accts.push(a);acctId=a.id}
@@ -828,7 +848,7 @@ function doImport(){const i=S.imp;const wasDemo=S.demo;leaveDemo();
   const src=uid(),run=new Map();let added=0,dup=0;for(const t of i.txs){const k=acctId+'|'+t.d+'|'+t.amt+'|'+t.desc.toLowerCase();const n=(run.get(k)||0)+1;run.set(k,n);if(n<=(ex.get(k)||0)){dup++;continue}
     S.tx.push({id:uid(),d:t.d,desc:t.desc,amt:t.amt,acct:acctId,m:ac.member||mem,cat:categorize(t.desc,t.amt),src});added++}
   const ds=i.txs.map(t=>t.d).sort();S.uploads.unshift({id:src,name:i.name,kind:'tx',at:Date.now(),hash:i.hash,acct:acctId,added,dup,total:i.txs.length,from:ds[0],to:ds[ds.length-1]});
-  save();toast(`Added ${added} transactions${dup?`, skipped ${dup} duplicates`:''}`);S.range=S.range;S.view=S.view==='bud'||S.view==='inv'?'overview':S.view;nextImportOrRender()}
+  const xm=matchTransfers();save();toast(`Added ${added} transactions${dup?`, skipped ${dup} duplicates`:''}${xm?`, matched ${xm} transfer${xm>1?'s':''} between your accounts`:''}`);S.range=S.range;S.view=S.view==='bud'||S.view==='inv'?'overview':S.view;nextImportOrRender()}
 
 /* ---------- bank statements read by column position (see js/statement.js) ---------- */
 const sLabel=(st,s)=>`${st.bank||'Bank'} ${s.type} ••${String(s.number||'').slice(-4)||'----'}`.replace(' ••----','');
@@ -862,7 +882,7 @@ function doStmt(){const i=S.imp,st=i.stmt,mem=$('#imem').value,wasDemo=S.demo;le
       S.tx.push({id:uid(),d:t.d,desc:t.desc,amt:t.amt,acct:a.id,m:a.member||mem,cat:stmtCat(s,t),src});added++}});
   let hn=0;if(i.hold)for(const h of stmtHolds(st)){const e=S.hold.find(x=>x.name.toLowerCase()===h.name.toLowerCase()&&x.m===mem);if(e)Object.assign(e,h);else S.hold.push({id:uid(),m:mem,...h});hn++}
   S.uploads.unshift({id:src,name:i.name,kind:'tx',at:Date.now(),hash:i.hash,acct:ids[0],accts:ids,added,dup,total,from:total?from:undefined,to:total?to:undefined,holds:hn||undefined});
-  save();toast(`Added ${added} transactions${dup?`, skipped ${dup} duplicates`:''}${hn?`, updated ${hn} investments`:''}`);S.view=S.view==='bud'?'overview':S.view;nextImportOrRender()}
+  const xm=matchTransfers();save();toast(`Added ${added} transactions${dup?`, skipped ${dup} duplicates`:''}${hn?`, updated ${hn} investments`:''}${xm?`, matched ${xm} transfer${xm>1?'s':''}`:''}`);S.view=S.view==='bud'?'overview':S.view;nextImportOrRender()}
 function doHold(){const i=S.imp,mem=$('#imem').value;leaveDemo();let a=0,u=0;for(const h of i.holds){const e=S.hold.find(x=>x.name.toLowerCase()===h.name.toLowerCase()&&x.m===mem);if(e){e.invested=h.invested;e.value=h.value;u++}else{S.hold.push({id:uid(),m:mem,...h});a++}}
   S.uploads.unshift({id:uid(),name:i.name,kind:'hold',at:Date.now(),hash:i.hash,added:a,updated:u,total:i.holds.length});save();toast(`${a} added, ${u} updated`);S.view='inv';nextImportOrRender()}
 function nextImportOrRender(){if(S.queue.length){render();nextImport()}else{closeModal();render()}}
@@ -908,12 +928,17 @@ function settings(){modal(`<h2>Settings</h2><p class="sub">Family, accounts, cur
   <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">${lockMeta?`<button class="btn sm" data-act="chglock">Change passcode</button><button class="btn sm" data-act="locknow">Lock now</button><button class="btn sm danger" data-act="offlock">Turn off</button><span class="muted" style="font-size:13px">Auto-lock after</span>${sel('alk',[['1','1 min'],['5','5 min'],['15','15 min'],['30','30 min'],['0','Never']],String(autoLockMin),'data-change="autolock"')}`:`<button class="btn sm primary" data-act="setlock">Set a passcode</button>`}</div>
   <div class="sec"><h2>Version</h2></div><div class="note">Portfolio <b>v${VERSION}</b>. On a hosted site, new releases are installed by your host (see the hosting guide); this button only checks whether the site has been updated since this page was loaded.</div><div style="margin-top:10px"><button class="btn sm" data-act="chkupd">Check for updates</button></div>
   <div class="sec"><h2>Hosting</h2></div><div class="note">Installing on your own website, or locking it down with Cloudflare Access.</div><div style="margin-top:10px"><button class="btn sm" data-act="guide">Install &amp; hosting guide</button></div>
-  <div class="sec"><h2>Backup</h2></div><div class="note">Copy a backup to keep your data safe or move it to another device, then paste it back to restore.</div>
+  <div class="sec"><h2>Transfers between accounts</h2></div><div class="note">When money leaves one of your accounts and the same amount arrives in another within 3 days, both are marked as a transfer so they don't count as spending or income. ${xfCount()?`<b>${xfCount()}</b> matched so far.`:'None matched yet.'} Changing the category of one side unlinks it.</div><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn sm" data-act="xfind">Find transfers</button>${xfCount()?'<button class="btn sm" data-act="xfundo">Remove all links</button>':''}</div>
+  <div class="sec"><h2>Backup</h2></div><div class="note">Copy a backup to keep your data safe or move it to another device, then paste it back to restore. ${bk.last?`Last backup: <b>${bkDays()===0?'today':bkDays()+' days ago'}</b>.`:'No backup made yet.'}</div>
+  <div style="margin-top:10px"><label class="muted" style="font-size:13px">Remind me <select class="csel" data-change="bkevery">${[[7,'every week'],[30,'every month'],[90,'every 3 months'],[0,'never']].map(([v,l])=>`<option value="${v}" ${bk.every===v?'selected':''}>${l}</option>`).join('')}</select></label></div>
   <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn sm" data-act="bkdl">Download backup</button><button class="btn sm" data-act="bkcopy">Copy backup</button><button class="btn sm" data-act="bkshow">Restore from backup…</button><button class="btn sm danger" id="clr" data-act="clear">Delete all my data</button></div><div id="bkarea"></div>
   <div class="acts"><button class="btn primary" data-act="close">Done</button></div>`)}
 
 /* ---------- events ---------- */
 const A={
+ bksnooze(){bk.snooze=Date.now()+7*864e5;saveMeta();render()},
+ xfind(){const n=matchTransfers();save();render();toast(n?`Matched ${n} transfer${n>1?'s':''}`:'No new transfers found');settings()},
+ xfundo(){for(const t of S.tx.filter(t=>t.xf))unlinkXf(t);for(const t of S.tx)if(t.xn)delete t.xn;save();render();toast('Transfer links removed');settings()},
  guide(){guideDlg()},chkupd(){checkUpdate(true)},reload(){location.reload()},updx(){$("#upd")?.remove()},
  anasub(e){S.ana=e.dataset.v;render()},streammode(e){S.stream=e.dataset.v;render()},calyear(e){S.calYear=e.dataset.v;render()},hmetric(e){S.hm=e.dataset.v;render()},yoytog(e){const f=e.dataset.v;(S._yoy||(S._yoy={}))[f]=!S._yoy[f];render()},
  view(e){S.view=e.dataset.v;if(S.view!=='tx'){}render();window.scrollTo(0,0)},
@@ -929,7 +954,7 @@ const A={
   const a=$('#ttype').value==='in'?amt:-amt;const cat=$('#tcat').value||categorize(desc,a);S.tx.push({id:uid(),d:$('#tdate').value,desc,amt:a,acct:ac,m:acctOf(ac).member,cat});save();closeModal();render();toast('Added')},
  stmtgo(){doStmt()},impcancel(){nextImportOrRender()},impgo(){doImport()},holdgo(){doHold()},
  pwok(){const v=$('#pw').value;window.__pw&&window.__pw(v)},pwcancel(){window.__pw&&window.__pw(null);closeModal()},
- updel(e){if(!e.dataset.sure){e.dataset.sure=1;e.textContent='Confirm';return}const id=e.dataset.id,n=S.tx.filter(t=>t.src===id).length;S.tx=S.tx.filter(t=>t.src!==id);S.uploads=S.uploads.filter(u=>u.id!==id);save();render();toast(`Removed ${n} transactions`)},
+ updel(e){if(!e.dataset.sure){e.dataset.sure=1;e.textContent='Confirm';return}const id=e.dataset.id,n=S.tx.filter(t=>t.src===id).length;S.tx=S.tx.filter(t=>t.src!==id);fixXf();S.uploads=S.uploads.filter(u=>u.id!==id);save();render();toast(`Removed ${n} transactions`)},
  cmd(){openCmd()},fab(){openCmd('',['Actions'])},more(){openCmd('',['Go to'])},
  onbx(){try{localStorage.setItem('pocketbook.onb','1')}catch(e){}render()},
  addgoal(){goalForm()},editgoal(e){goalForm(S.goals.find(g=>g.id===e.dataset.id))},goalfund(e){fundForm(S.goals.find(g=>g.id===e.dataset.id))},
@@ -945,8 +970,8 @@ const A={
  copycsv(){const a=txFiltered(),q=v=>`"${xcell(v).replace(/"/g,'""')}"`;const csv='Date,Description,Category,Account,Member,Amount\n'+a.map(t=>[t.d,q(t.desc),q(t.cat),q(acctOf(t.acct).name),q(memOf(t.m).name),t.amt.toFixed(2)].join(',')).join('\n');
   (navigator.clipboard?navigator.clipboard.writeText(csv):Promise.reject()).then(()=>toast('CSV copied'),()=>toast('Copy was blocked by the browser'))},
  bkshow(){$('#bkarea').innerHTML='<div class="fld" style="margin-top:10px"><input type="file" id="bkfile" accept=".json" style="margin-bottom:8px"><textarea id="bktxt" rows="5" placeholder="Choose a backup file, or paste it here"></textarea></div><button class="btn sm primary" data-act="bkgo" style="margin-top:8px">Restore</button>'},
- async bkdl(){try{const j=JSON.stringify(await backupObj(),null,1);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([j],{type:'application/json'}));a.download='portfolio-backup-'+iso(new Date())+'.json';a.click();toast(lockMeta?'Encrypted backup saved':'Backup file saved')}catch(e){toast('Download was blocked, use Copy backup')}},
- async bkcopy(){const j=JSON.stringify(await backupObj());copyText(j,lockMeta?'Encrypted backup copied':'Backup copied')},
+ async bkdl(){try{const j=JSON.stringify(await backupObj(),null,1);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([j],{type:'application/json'}));a.download='portfolio-backup-'+iso(new Date())+'.json';a.click();bkDone();toast(lockMeta?'Encrypted backup saved':'Backup file saved');if($('#bkbn'))render()}catch(e){toast('Download was blocked, use Copy backup')}},
+ async bkcopy(){const j=JSON.stringify(await backupObj());bkDone();copyText(j,lockMeta?'Encrypted backup copied':'Backup copied')},
  async bkgo(){try{await restoreObj(JSON.parse($('#bktxt').value))}catch(e){toast('That backup could not be read')}},
  unlock(){doUnlock()},locknow(){lockNow()},setlock(){secForm('set')},chglock(){secForm('change')},offlock(){secForm('off')},secgo(e){secGo(e.dataset.mode)},
  lockreset(e){if(!e.dataset.sure){e.dataset.sure=1;e.textContent='Click again to erase everything on this device';return}kvDel('state').then(()=>kvDel('meta')).then(()=>{try{localStorage.removeItem(KEY)}catch(x){}location.reload()})},
@@ -961,7 +986,7 @@ const A={
 };
 document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(t&&A[t.dataset.act]){A[t.dataset.act](t,e)}else if(e.target.id==='modal'&&!$('[data-act=pwok]'))closeModal()});
 const C={
- cat(el){const t=S.tx.find(x=>x.id===el.dataset.id);t.cat=el.value;const k=mkey(t.desc);S.rules[k]=el.value;let n=0;for(const x of S.tx)if(x!==t&&mkey(x.desc)===k&&x.cat!==el.value){x.cat=el.value;n++}save();renderTxRows();toast(n?`Moved ${n+1} “${pretty(k)}” transactions to ${el.value}`:'Category updated')},
+ cat(el){const t=S.tx.find(x=>x.id===el.dataset.id);if(t.xf){const p=S.tx.find(x=>x!==t&&x.xf===t.xf);unlinkXf(t);t.xn=1;if(p)p.xn=1}t.cat=el.value;const k=mkey(t.desc);S.rules[k]=el.value;let n=0;for(const x of S.tx)if(x!==t&&mkey(x.desc)===k&&x.cat!==el.value){x.cat=el.value;n++}save();renderTxRows();toast(n?`Moved ${n+1} “${pretty(k)}” transactions to ${el.value}`:'Category updated')},
  bud(el){const v=+el.value;if(v>0)S.budgets[el.dataset.v]=v;else delete S.budgets[el.dataset.v];save();render()},
  cur(el){S.cur=el.value;for(const k in nfs)delete nfs[k];save();settings();render()},
  mname(el){const m=S.members.find(x=>x.id===el.dataset.id);m.name=el.value.trim()||m.name;save();render()},
@@ -970,15 +995,16 @@ const C={
  amem(el){const a=S.accts.find(x=>x.id===el.dataset.id);a.member=el.value;S.tx.forEach(t=>{if(t.acct===a.id)t.m=el.value});save();render()},
  alim(el){S.accts.find(x=>x.id===el.dataset.id).limit=+el.value||undefined;save();render()},
  pwmeter(el){const n=strength(el.value),m=$('#pwm');m.style.width=(n*25)+'%';m.style.background=n>=3?'var(--in)':n===2?'var(--warn)':'var(--out)'},
+ bkevery(el){bk.every=+el.value;saveMeta();toast(bk.every?`Backup reminder every ${bk.every} days`:'Backup reminders are off')},
  autolock(el){autoLockMin=+el.value;saveMeta();toast(autoLockMin?`Auto-lock after ${autoLockMin} min`:'Auto-lock is off')},
  htype(el){const f=$('#hfy');if(!f.value&&LIMITS[el.value])f.placeholder='Up to '+money(LIMITS[el.value])},
  stpick(el){S.imp.pick[+el.dataset.n]=el.checked},sthold(el){S.imp.hold=el.checked},
- iacct(el){S.imp.acct=el.value==='new'?null:el.value;if(el.value==='new'&&!S.imp.nm)S.imp.nm='';readImp();txDialog()},
+ iacct(el){S.imp.acct=el.value;if(el.value==='new'&&!S.imp.nm)S.imp.nm='';readImp();txDialog()},
  impmap(){readImp();txDialog()}
 };
 function readImp(){const i=S.imp;if(!i||i.kind!=='tx')return;const g=id=>$('#'+id)?+$('#'+id).value:null;const v=(id,k)=>{const x=g(id);if(x!==null)i.map[k]=x};
   v('mdate','date');v('mdesc','desc');v('mamt','amt');v('mdeb','debit');v('mcre','credit');if($('#iorder'))i.order=$('#iorder').value;if($('#iflip'))i.flip=$('#iflip').checked;
-  if($('#inm'))i.nm=$('#inm').value;if($('#ity'))i.acctType=$('#ity').value;if($('#imem'))i.mem=$('#imem').value;if($('#iacct')&&$('#iacct').value!=='new')i.acct=$('#iacct').value;else if($('#iacct'))i.acct=null}
+  if($('#inm'))i.nm=$('#inm').value;if($('#ity'))i.acctType=$('#ity').value;if($('#imem'))i.mem=$('#imem').value;if($('#iacct'))i.acct=$('#iacct').value}
 document.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.change&&C[t.dataset.change]){C[t.dataset.change](t)}
   else if(t.id==='fysel'){if(t.value){S.range=t.value;render()}}
   else if(t.id==='fcat'){S.fcat=t.value;S.limit=80;renderTxRows()}else if(t.id==='facct'){S.facct=t.value;S.limit=80;renderTxRows()}else if(t.id==='ftype'){S.ftype=t.value;S.limit=80;renderTxRows()}

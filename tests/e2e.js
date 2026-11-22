@@ -38,6 +38,24 @@ const toast=await p.textContent('#toast');
 ok(/\b0\b|nothing|skipped|duplicate/i.test(toast),'second import adds nothing ('+toast+')');
 await p.click('#tabs [data-v=tx]');
 
+console.log('Transfers + backup reminder');
+const catOf=async needle=>p.evaluate(n=>{const r=[...document.querySelectorAll('.tx:not(.hd)')].find(x=>x.textContent.includes(n));return r?r.querySelector('select').value:null},needle);
+const fa=path.join(tmp,'acc-a.csv'),fb=path.join(tmp,'acc-b.csv');
+fs.writeFileSync(fa,csv([['10/02/2025','"WIDGETCO ZZQ REF"','7777.00','','1000.00']]));
+fs.writeFileSync(fb,csv([['11/02/2025','"INWARD ZZQ CREDIT"','','7777.00','8777.00']]));
+await p.setInputFiles('#file',fa);await p.waitForSelector('.sheet');await p.click('[data-act=impgo]');await p.waitForTimeout(600);
+await p.setInputFiles('#file',fb);await p.waitForSelector('.sheet');
+const sel=await p.$('#iacct');if(sel){await sel.selectOption('new');await p.waitForTimeout(400)}
+await p.click('[data-act=impgo]');await p.waitForTimeout(600);
+ok(/matched 1 transfer/.test(await p.textContent('#toast')),'equal opposite amounts in two accounts are matched ('+(await p.textContent('#toast'))+')');
+await p.click('#tabs [data-v=tx]');await p.click('.bar .pill:has-text("All time")');await p.fill('#q','ZZQ');await p.waitForTimeout(500);
+ok((await catOf('WIDGETCO'))==='Transfers'&&(await catOf('INWARD'))==='Transfers','both sides are categorised as Transfers');
+await p.evaluate(()=>new Promise(r=>{const q=indexedDB.open('portfolio-db',1);q.onsuccess=()=>{const tx=q.result.transaction('kv','readwrite');tx.objectStore('kv').put({lock:null,autoLock:5,bk:{last:0,every:30,snooze:0,since:Date.now()-10*864e5}},'meta');tx.oncomplete=r}}));
+await p.reload();await p.waitForTimeout(1500);await p.click('#tabs [data-v=overview]');await p.waitForTimeout(500);
+ok(!!(await p.$('#bkbn')),'backup reminder appears when no backup was made for a week');
+await p.click('#bkbn [data-act=bkdl]').catch(()=>{});await p.waitForTimeout(800);
+ok(!(await p.$('#bkbn')),'reminder goes away after downloading a backup');
+
 console.log('XSS hardening');
 const evil='<img src=x onerror="window.__xss=1">';
 const f=path.join(tmp,'evil.csv');fs.writeFileSync(f,csv([['01/02/2025',`"${evil} <script>window.__xss=1</script>"`,'100.00','','900.00']]));
