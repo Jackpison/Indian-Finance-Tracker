@@ -4,6 +4,19 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-22
+### Added
+- **Updates** page: check GitHub, read what changed and install a release in one click through `update.php` on your own site (verifies SHA-256, keeps a backup).
+- Transactions: expandable rows (details, change category, copy), filter panel with category and account chips and a count badge, summary cards, tinted category tags, staggered fade-in.
+- Overview: dark net-worth hero with a 12-month line, striped income and spending bars, cursor spotlight on cards.
+
+### Changed
+- Sidebar is the opposite of the page (dark beside a light page, light beside a dark one) and swaps when you switch theme; smoother motion throughout (page transitions, hover and press feedback, reduced-motion respected); shorter period bar with a More menu; styled tables; onboarding card hidden once you have data; Cards page uses the new stat cards.
+- README screenshots regenerated from fictional data.
+
+### Removed
+- Old unused styles and code (health score, greeting header, animated borders).
+
 ## [0.2.0] - 2026-11-22
 ### Fixed
 - **Data safety.** Saved data can no longer be replaced or deleted by a stale tab or a failed start. Every save keeps a mirror copy, the previous version and a daily snapshot; if the main copy is missing the app offers to restore from them. A tab that finds newer data written elsewhere stops saving and asks you to reload. The app asks the browser for persistent storage, and shows a banner if a save fails.
@@ -13,13 +26,6 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - **Balance** tab under Wealth: bank balances and other holdings, as a total and per family member.
 - Dedicated **Settings** page (General, Family, Accounts, Security, Backup, Data tools, About).
 - Grouped sidebar with page titles and subtitles, new stat cards, buttons and segmented controls.
-
-- Transactions: click a row to expand it (details, change category, copy), filter panel with category and account chips and a count badge, tinted category tags, staggered fade-in.
-- Dark sidebar in light and dark themes; summary cards above the transaction list.
-- Overview: dark net-worth hero with a 12-month line, striped income and spending bars, cursor spotlight on cards.
-- Shorter period bar (five common periods plus a More menu); onboarding card hidden once you have data; styled tables.
-
-- **Updates** page: check GitHub for a new release, read what changed and install it in one click. It talks to `update.php` on your own site, which downloads the release, verifies its SHA-256 and keeps a backup. Needs `update.php` uploaded once (see the hosting guide).
 
 ### Removed
 - Demo data, Goals and Budgets.

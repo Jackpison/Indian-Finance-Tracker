@@ -199,17 +199,11 @@ kbd{font:500 11px var(--mono);padding:2px 6px;border-radius:6px;border:1px solid
 .card:hover::before{opacity:1}
 @property --ba{syntax:'<angle>';inherits:false;initial-value:0deg}
 @keyframes spin{to{--ba:360deg}}
-.beam{border:1.5px solid transparent!important;background:linear-gradient(var(--surface),var(--surface)) padding-box,conic-gradient(from var(--ba),transparent 0 58%,var(--accent) 80%,var(--accent2) 92%,transparent 100%) border-box!important}
-.grid>.card.beam{animation:up .6s cubic-bezier(.2,.8,.2,1) backwards,spin 7s linear infinite}
 .noanim .grid>.card,.noanim .cards>.card,.noanim #txrows,.noanim .onb,.noanim .coming,.noanim .hero{animation:none!important}
-.noanim .grid>.card.beam{animation:spin 7s linear infinite!important}
 .noanim .b-in,.noanim .b-out,.noanim .seg{animation:none!important}
-.hero{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;margin:6px 2px 16px;animation:up .6s cubic-bezier(.2,.8,.2,1) backwards}
 .eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
-.hero h1{margin:4px 0 2px;font-size:clamp(28px,4.4vw,42px);line-height:1.1;letter-spacing:-.035em;font-weight:650}
 .gtext{background:linear-gradient(100deg,var(--fg) 0%,var(--accent) 35%,var(--accent2) 60%,var(--fg) 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--fg);animation:sheen 9s ease-in-out infinite alternate}
 @keyframes sheen{to{background-position:100% 0}}
-.hero p{margin:0}.hero-r{display:flex;gap:8px;flex-wrap:wrap}
 .coming{display:flex;align-items:center;gap:14px;margin-bottom:14px;padding:10px 16px;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:var(--shadow);min-width:0;animation:up .6s .05s cubic-bezier(.2,.8,.2,1) backwards}
 .clabel{display:flex;flex-direction:column;flex:none;line-height:1.25}.clabel span{font-size:12px;font-weight:600;color:var(--muted)}.clabel b{font-size:17px;font-weight:550}.clabel small{color:var(--faint);font-size:11.5px}
 .marq{flex:1;min-width:0;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent)}
@@ -322,9 +316,6 @@ body{background-image:none}
   main{max-width:1280px}
 }
 .kpi::after,body::before{display:none}
-.beam{border:1px solid var(--line)!important;background:var(--surface)!important;animation:none!important}
-.hero h1,.hero h1 *{background:none!important;-webkit-text-fill-color:currentColor!important;color:var(--fg)!important}
-.hero h1{font-size:clamp(26px,3.4vw,34px)}
 .kpi .val{font-weight:650}
 .card .foot{flex-wrap:wrap}
 /* KPI cards */
@@ -464,13 +455,19 @@ select:hover,.csel:hover{border-color:color-mix(in srgb,var(--fg) 25%,var(--line
 .split .lrow .nm{overflow:visible;text-overflow:clip;white-space:normal;line-height:1.25}
 .split .lrow{gap:8px}
 
-/* ---- dark sidebar in every theme (Finstack-style) ---- */
+/* ---- sidebar is the opposite of the page: dark beside a light page, light beside a dark page ---- */
 @media(min-width:1100px){
   .tabs{--fg:#E7EAEC;--muted:#98A1A8;--faint:#6A737A;--surface-2:#1a1e21;--line:#22272b;--accent-soft:rgba(123,167,255,.16);--accent:#7BA7FF;background:#0d1012;color:var(--fg)}
-  .tabs .navh{color:#6A737A}
-  .tabs button{color:#98A1A8}
+  .tabs .navh{color:#6A737A}.tabs button{color:#98A1A8}
   .tabs button:hover,.tabs button[aria-selected=true]{color:#fff}
 }
+@media(min-width:1100px) and (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tabs{--fg:#12161A;--muted:#58636D;--faint:#8A949D;--surface-2:#EDF0F3;--line:#E3E7EB;--accent-soft:rgba(47,84,235,.10);--accent:#2F54EB;background:#fff;color:var(--fg)}
+  :root:not([data-theme="light"]) .tabs .navh{color:#8A949D}:root:not([data-theme="light"]) .tabs button{color:#58636D}
+  :root:not([data-theme="light"]) .tabs button:hover,:root:not([data-theme="light"]) .tabs button[aria-selected=true]{color:#12161A}}
+@media(min-width:1100px){:root[data-theme="dark"] .tabs{--fg:#12161A;--muted:#58636D;--faint:#8A949D;--surface-2:#EDF0F3;--line:#E3E7EB;--accent-soft:rgba(47,84,235,.10);--accent:#2F54EB;background:#fff;color:var(--fg)}
+  :root[data-theme="dark"] .tabs .navh{color:#8A949D}:root[data-theme="dark"] .tabs button{color:#58636D}
+  :root[data-theme="dark"] .tabs button:hover,:root[data-theme="dark"] .tabs button[aria-selected=true]{color:#12161A}}
+@media(min-width:1100px){.tabs{transition:background-color .5s ease,color .5s ease,border-color .5s ease}.tabs button{transition:background-color .2s,color .2s,transform .2s}.tabs button:active{transform:scale(.98)}}
 /* transaction summary cards */
 .txsum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
 .txsum .card{padding:14px 16px}
@@ -495,3 +492,22 @@ select:hover,.csel:hover{border-color:color-mix(in srgb,var(--fg) 25%,var(--line
 .hatch::after{content:'';position:absolute;inset:0;width:var(--w,100%);border-radius:8px;background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--c) 55%,transparent) 0 2px,transparent 2px 5px);border-right:2px solid var(--c);animation:hw .9s cubic-bezier(.2,.8,.2,1) both}
 .hatch.in{--c:var(--in)}.hatch.out{--c:var(--out)}
 @keyframes hw{from{width:0}}
+.tbl table{table-layout:fixed}
+.tbl th:first-child{width:30%}
+@media(max-width:700px){.tbl table{table-layout:auto}}
+@media(max-width:700px){.pills,.mem{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:none}.pill{white-space:nowrap}}
+
+/* ---- buttery motion ---- */
+html{scroll-behavior:smooth}
+#main>*{animation:viewin .45s cubic-bezier(.2,.8,.2,1) both}
+#main>*:nth-child(2){animation-delay:40ms}#main>*:nth-child(3){animation-delay:80ms}#main>*:nth-child(4){animation-delay:120ms}#main>*:nth-child(n+5){animation-delay:160ms}
+@keyframes viewin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.btn,.pill,.fchip,.seg button,.tabs button,select,.in-t,.card,.tg,.chip{transition:background-color .2s ease,color .2s ease,border-color .2s ease,box-shadow .25s ease,transform .2s cubic-bezier(.2,.8,.2,1),opacity .2s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.btn:active,.pill:active,.fchip:active{transform:scale(.96)}
+.card:hover{box-shadow:0 8px 28px rgba(0,0,0,.06)}
+.lr,.lrow,.srow{transition:background-color .2s}
+.lr:hover,.lrow:hover{background:color-mix(in srgb,var(--fg) 3%,transparent)}
+.prog>i,.hatch::after{transition:width .7s cubic-bezier(.2,.8,.2,1)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;transition:outline-offset .15s}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

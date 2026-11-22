@@ -17,9 +17,12 @@ No server. No database. No tracking. Your data stays in your browser.</p>
 | **Family** | Members, accounts, credit cards with limits and utilisation, per-person views. |
 | **Analytics** | Spending flow, income-to-spend Sankey, merchant treemap, daily calendar, year-by-month heatmap, year-over-year lines, savings rate, 3-month outlook, unusual payments, category growth. |
 | **Investments** | Stocks, mutual funds, PPF, EPF, NPS, Sukanya Samriddhi, LIC, FDs, gold, with annual limit trackers. |
-| **Balance, bills** | Recurring payment detection and upcoming bills, transfer matching between your accounts. |
+| **Balance** | What you hold today: bank balances and other holdings, as a total and per family member. |
+| **Bills** | Recurring payment detection and upcoming bills, transfer matching between your accounts. |
 | **Vault** | Card, account, PAN, Aadhaar and policy numbers. Last four characters show, the rest after you click Reveal. One-click copy. |
 | **Copy anything** | Every transaction can be copied; copy a whole filtered list for Excel or as CSV. |
+| **Data safety** | Every save keeps a mirror copy, the previous version and a daily snapshot, and the app offers to restore them if the main copy goes missing. Another tab can never overwrite newer data. Persistent storage is requested; a banner appears if a save fails. Back up from Settings anyway. |
+| **Updates** | An in-app Updates page installs new GitHub releases onto your own site (needs `deploy/update.php`). |
 | **Themes** | Light, dark and system with an animated reveal. |
 
 <p align="center">
@@ -31,7 +34,8 @@ No server. No database. No tracking. Your data stays in your browser.</p>
 <p align="center">
 <img src="docs/screenshots/mobile-overview.png" width="220" alt="Mobile overview">
 <img src="docs/screenshots/mobile-analytics.png" width="220" alt="Mobile analytics">
-<img src="docs/screenshots/vault.png" width="440" alt="Vault">
+<img src="docs/screenshots/transactions.png" width="440" alt="Transactions">
+<img src="docs/screenshots/balance.png" width="440" alt="Balance">
 </p>
 
 ## Install on cPanel (shared hosting)

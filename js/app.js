@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.2.0'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
+const VERSION='0.3.0'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -464,23 +464,11 @@ const tick=(v,f='m')=>`<span data-n="${v}" data-f="${f}">${TICK[f](v)}</span>`;
 function runTickers(root){root.querySelectorAll('[data-n]').forEach(el=>{const to=+el.dataset.n,f=TICK[el.dataset.f],t0=performance.now(),d=1100;const step=t=>{const k=Math.min(1,(t-t0)/d),e=k===1?1:1-Math.pow(2,-10*k);el.textContent=f(to*e);if(k<1)requestAnimationFrame(step)};el.textContent=f(0);requestAnimationFrame(step)})}
 function ring(p,size,sw,col){const r=(size-sw)/2,C=2*Math.PI*r,c=size/2;return`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="transform:rotate(-90deg)" aria-hidden="true"><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="var(--surface-2)" stroke-width="${sw}"/><circle class="ring-fg" cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-off="${C*(1-Math.max(0,Math.min(100,p))/100)}"/></svg>`}
 const clamp=v=>Math.max(0,Math.min(100,v));
-function health(cur,c,rate,days){if(c.inc<=0)return null;const months=Math.max(1,days/30.4),f=[];
-  f.push(['Savings rate',clamp(rate/25*100),`${Math.max(0,rate).toFixed(0)}% kept`,.35]);
-  const invOut=-cur.filter(t=>t.cat==='Investments').reduce((a,t)=>a+t.amt,0),ip=invOut/c.inc*100;f.push(['Investing',clamp(ip/15*100),`${ip.toFixed(0)}% invested`,.25]);
-  const fixed=recurring().filter(x=>x.sign<0&&x.cat!=='Investments').reduce((a,x)=>a+x.monthly,0),burden=fixed/(c.inc/months);f.push(['Fixed bills',clamp(100-(burden-.3)/.4*100),`${Math.round(burden*100)}% of income`,.2]);
-  const score=Math.round(f.reduce((a,x)=>a+x[1]*x[3],0));
-  return{score,f:f.map(x=>[x[0],Math.round(x[1]),x[2]]),label:score>=75?'Strong':score>=50?'Fair':'Needs care'}}
-function healthCard(h){if(!h)return`<div class="card s4"><h3>Financial health</h3><div class="muted">Add income in this period to see your score.</div></div>`;
-  const col=h.score>=75?'var(--in)':h.score>=50?'var(--warn)':'var(--out)',tone=h.score>=75?'good':h.score>=50?'warn':'bad';
-  return`<div class="card s4 beam"><h3>Financial health <span class="chip ${tone}">${h.label}</span></h3><div class="hs"><div class="ringw" style="width:132px;height:132px">${ring(h.score,132,12,col)}<div class="ringc"><b class="num" style="font-size:30px;font-weight:550">${tick(h.score,'n')}</b><small>out of 100</small></div></div>
-  <div class="fac">${h.f.map(f=>`<div><div class="fr"><span>${f[0]}</span><span class="num muted">${esc(f[2])}</span></div><div class="prog" style="--c:${f[1]>=70?'var(--in)':f[1]>=40?'var(--warn)':'var(--out)'}"><i style="width:${f[1]}%"></i></div></div>`).join('')}</div></div></div>`}
 function upcoming(){const b=bounds();if(!b)return[];return recurring().filter(x=>x.sign<0&&x.next>=addDays(b.mx,-1)&&x.next<=addDays(b.mx,30)).sort((a,c)=>a.next<c.next?-1:1)}
 function marquee(up){if(!up.length)return'';const mx=bounds().mx,total=up.reduce((a,x)=>a+x.amt,0);
   const chip=x=>{const d=daysBetween(mx,x.next);return`<span class="bill"><i class="dot" style="--c:${CC[x.cat]}"></i>${esc(pretty(x.k))}<b class="num">${compact(x.amt)}</b><em>${d<=0?'due now':d===1?'tomorrow':'in '+d+' days'}</em></span>`};
   const it=up.map(chip).join(''),run=up.length>=4;
   return`<div class="coming"><div class="clabel"><span>Coming up</span><b class="num">${compact(total)}</b><small>next 30 days</small></div><div class="marq ${run?'run':''}"><div class="mt">${it}${run?it:''}</div></div></div>`}
-function hero(rg){const h=new Date().getHours(),g=h<12?'Good morning':h<17?'Good afternoon':'Good evening',who=S.member==='all'?'the whole family':memOf(S.member).name;
-  return`<div class="hero"><div><div class="eyebrow">${esc(rg.label)} · ${esc(who)}</div><h1 class="gtext">${g}</h1><p class="muted">Here is how ${esc(S.member==='all'?'your family':memOf(S.member).name)} is doing.</p></div><div class="hero-r"><span class="chip">${S.tx.length.toLocaleString('en-IN')} transactions</span><span class="chip">${S.uploads.length} files imported</span></div></div>`}
 function onboard(){const real=true;let dis=false;try{dis=localStorage.getItem('pocketbook.onb')==='1'}catch(e){}
   const steps=[['Import a bank or card statement',real&&S.uploads.some(u=>u.kind==='tx'),'import'],['Add your family members',real&&S.members.length>1,'settings'],['Track your investments',real&&S.hold.length>0,'addhold']];
   const n=steps.filter(x=>x[1]).length;if(real&&(n===3||dis||S.tx.length))return'';
@@ -561,8 +549,8 @@ function cards(){const cs=S.accts.filter(a=>a.type==='card'&&(S.member==='all'||
   if(!rg)return empty('No data.');
   const tot=cs.map(c=>{const a=S.tx.filter(t=>t.acct===c.id);return{c,cur:within(a,rg.from,rg.to),prv:rg.pf?within(a,rg.pf,rg.pt):[]}});
   const T=tot.reduce((a,x)=>a+sums(x.cur).sp,0),Tp=tot.reduce((a,x)=>a+sums(x.prv).sp,0);
-  return`<div class="grid" style="margin-bottom:14px"><div class="card kpi s4"><div class="lbl">Card spending · ${esc(rg.label)}</div><div class="val num">${tick(T)}</div><div class="foot">${rg.pf&&Tp?dChip(T,Tp,true)+' <span class="faint">vs prev.</span>':''}</div></div>
-   <div class="card kpi s4"><div class="lbl">Cards</div><div class="val num">${cs.length}</div><div class="foot"><span class="faint">${cs.map(c=>esc(c.name)).join(', ')}</span></div></div></div>
+  return`<div class="grid" style="margin-bottom:14px"><div class="card stat s3"><div class="sl">Card spending · ${esc(rg.label)}</div><div class="sv num">${tick(T)}</div><div class="ss">${rg.pf&&Tp?dChip(T,Tp,true)+' <span>vs previous period</span>':''}</div></div>
+   <div class="card stat s3"><div class="sl">Cards</div><div class="sv num">${cs.length}</div><div class="ss">${cs.map(c=>esc(c.name)).join(', ')}</div></div></div>
    <div class="cards">${tot.map(({c,cur,prv})=>{const sp=sums(cur).sp,spp=sums(prv).sp,cats=byCat(cur).slice(0,5),mx=cats[0]?cats[0][1]:1,mm=memOf(c.member);
      const lastM=bounds()&&S.tx.filter(t=>t.acct===c.id&&t.d.slice(0,7)===bounds().mx.slice(0,7));const used=lastM?sums(lastM).sp:0;
      return`<div class="card"><h3><span style="display:flex;gap:8px;align-items:center"><span class="dot" style="--c:${mm.color}"></span>${esc(c.name)}</span><span class="tag">${esc(mm.name)}</span></h3>
