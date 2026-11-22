@@ -134,7 +134,7 @@ CI runs syntax checks, verifies vendored files, blocks external URLs and unsafe 
 
 ## Notes
 
-PDF layouts vary a lot between banks. Always check the preview before importing. Scanned (image-only) PDFs cannot be read; use the Excel or CSV export from net banking instead.
+Multi-account statements with Deposits / Withdrawals / Balance columns (tested on an ICICI annual statement layout) are reconciled against the running balance before import, and FDs and PPF in the file are added to Investments. Other layouts fall back to a generic line parser. PDF layouts vary a lot between banks. Always check the preview before importing. Scanned (image-only) PDFs cannot be read; use the Excel or CSV export from net banking instead.
 
 ## Credits
 

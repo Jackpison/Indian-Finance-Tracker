@@ -20,11 +20,12 @@ const CATS=[
 const CC=Object.fromEntries(CATS);
 const NONSPEND=new Set(['Income','Investments','Transfers']);
 const KW=[
-['Income',/salary|payroll|dividend|interest (credited|paid|cr)|int\.? ?pd|stipend|bonus|sal cr/i],
-['Investments',/zerodha|groww|upstox|kuvera|indmoney|smallcase|angel one|\bsip\b|mutual fund|\bmf\b|\bppf\b|\bnps\b|sukanya|\bssy\b|nse clearing|\bbse\b|ccil|icclindia|gold ?bees|\bfd\b|\brd\b|bluechip|nippon|mirae|parag parikh/i],
-['Transfers',/credit card payment|cc payment|cred club|\bcred\b|payment received|autopay|self transfer|own account|sweep|bbps.*card|card payment/i],
+['Income',/salary|payroll|dividend|int on (fd|rd)|int\.? ?on\b|credit interest|sb int|interest (credited|paid|cr)|int\.? ?pd|stipend|bonus|sal cr/i],
+['Investments',/trf to (fd|rd)|fd clos|clo\w* pro\w*|(fd|rd) (booking|closure|premature)|zerodha|groww|upstox|kuvera|indmoney|smallcase|angel one|\bsip\b|mutual fund|\bmf\b|\bppf\b|\bnps\b|sukanya|\bssy\b|nse clearing|\bbse\b|ccil|icclindia|gold ?bees|\bfd\b|\brd\b|bluechip|nippon|mirae|parag parikh/i],
+['Transfers',/credit card payment|cc payment|cred club|\bcred\b|payment received|autopay|self transfer|\/self\b|own account|sweep|bbps.*card|card payment/i],
 ['Insurance',/\blic\b|insurance|hdfc life|sbi life|max life|star health|icici pru|policybazaar|acko|\bdigit\b|premium/i],
 ['EMI & Loans',/\bemi\b|loan|bajaj fin|home loan|\bnach\b|\becs\b|hdfc ltd/i],
+['Fees',/dcardfee|dcard fee|sms ?chgs?|debit card (fee|annual)/i],
 ['Tax',/income tax|\bgst\b|\btds\b|advance tax|cbdt|property tax|challan|itns/i],
 ['Education',/school|college|tuition|byju|unacademy|udemy|coursera|university|exam/i],
 ['Housing',/\brent\b|maintenance|society|nobroker|magicbricks|landlord|housing/i],
@@ -37,7 +38,7 @@ const KW=[
 ['Health',/apollo|pharmeasy|\b1mg\b|netmeds|medplus|hospital|clinic|diagnostic|\blab\b|practo|dental|pharmacy|medical/i],
 ['Entertainment',/bookmyshow|\bpvr\b|\binox\b|cinema|steam|dream11|gaming|concert|insider/i],
 ['Shopping',/amazon|amzn|flipkart|myntra|ajio|nykaa|meesho|croma|reliance digital|tata cliq|decathlon|lifestyle|pantaloons|westside|ikea|shoppers stop|h&m|zara|\bstore\b/i],
-['Fees',/\b(fee|fees|charges|charge|penalty|markup)\b|late payment|forex/i]];
+['Fees',/\b(fee|fees|charges|charge|penalty|markup)\b|late payment|forex|\bchgs\b/i]];
 const STOP=new Set('UPI NEFT IMPS POS ACH RTGS NACH ECS BIL MB IB TO BY TRANSFER DR CR PAYMENT PURCHASE DEBIT CARD ONLINE REF REFNO TXN P2A P2M ICICI HDFC SBI AXIS YBL OKAXIS OKHDFCBANK OKSBI OKICICI PAYTM IBL APL BANK LTD PVT LIMITED INDIA'.split(' '));
 const MK=new Map();function mkey(d){let k=MK.get(d);if(k===undefined){k=mkey0(d);if(MK.size>300000)MK.clear();MK.set(d,k)}return k}
 function mkey0(d){const w=String(d).toUpperCase().replace(/[^A-Z& ]+/g,' ').split(/\s+/).filter(x=>x.length>1&&!STOP.has(x));
@@ -693,7 +694,7 @@ function uploadsView(){const u=S.uploads,dups=u.reduce((a,x)=>a+(x.dup||0),0);
   const head=`<div class="grid" style="margin-bottom:14px">${k('Files imported',u.length,'statements and holdings')}${k('Transactions in your database',S.tx.length.toLocaleString('en-IN'),S.demo?'sample data':'saved in this browser')}${k('Duplicates skipped',dups.toLocaleString('en-IN'),'overlapping rows ignored')}</div>`;
   if(!u.length)return head+`<div class="card empty"><p style="margin:0 0 12px"><b style="color:var(--fg)">Nothing imported yet.</b><br>Every file you import is logged here, and its transactions are stored as records in your own database.</p><button class="btn primary" data-act="import">Import a file</button></div>`;
   return head+`<div class="card"><h3>Import history <button class="btn sm" data-act="import">Import another file</button></h3><div class="scroll"><table class="tbl hold"><thead><tr><th>File</th><th>Account</th><th>Period</th><th>When</th><th class="r">New</th><th class="r">Duplicates</th><th></th></tr></thead><tbody>
-  ${u.map(x=>`<tr><td style="font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.name)}">${esc(x.name)} <span class="tag">${x.kind==='hold'?'holdings':'transactions'}</span></td><td>${x.kind==='tx'?esc(acctOf(x.acct).name):'—'}</td><td class="muted">${x.from?fd(x.from,false)+' – '+fd(x.to):'—'}</td><td class="muted">${new Date(x.at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</td>
+  ${u.map(x=>`<tr><td style="font-weight:500;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(x.name)}">${esc(x.name)} <span class="tag">${x.kind==='hold'?'holdings':'transactions'}</span>${x.holds?` <span class="tag">+${x.holds} investments</span>`:''}</td><td>${x.kind==='tx'?(x.accts&&x.accts.length>1?x.accts.length+' accounts':esc(acctOf(x.acct).name)):'—'}</td><td class="muted">${x.from?fd(x.from,false)+' – '+fd(x.to):'—'}</td><td class="muted">${new Date(x.at).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})}</td>
   <td class="r num in">${x.added}${x.kind==='hold'?' / '+x.updated+' upd.':''}</td><td class="r num ${x.dup?'warn':'faint'}">${x.dup||0}</td><td class="r">${x.kind==='tx'?`<button class="btn sm danger" data-act="updel" data-id="${x.id}">Remove</button>`:''}</td></tr>`).join('')}</tbody></table></div>
   <p class="muted" style="margin:12px 0 0;font-size:12.5px">Removing an import deletes only the transactions it added. Re-importing the same file later is safe: matching rows are skipped.</p></div>`}
 
@@ -759,10 +760,11 @@ async function pdfRows(file,buf){await loadScript('pdf.min.js');await loadScript
   pdfjsLib.GlobalWorkerOptions.workerSrc='vendor/pdf.worker.min.js';
   const task=pdfjsLib.getDocument({data:new Uint8Array(buf),isEvalSupported:false});
   task.onPassword=async(update,reason)=>{const pw=await askPassword(file.name,reason===2);if(pw==null){task.destroy();return}update(pw)};
-  const doc=await task.promise;closeModal();const lines=[];
-  for(let p=1;p<=doc.numPages;p++){const pg=await doc.getPage(p),tc=await pg.getTextContent();const items=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({x:i.transform[4],y:i.transform[5],w:i.width,s:i.str}));
+  const doc=await task.promise;closeModal();const lines=[],pages=[];
+  for(let p=1;p<=doc.numPages;p++){const pg=await doc.getPage(p),tc=await pg.getTextContent();const items=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({x:i.transform[4],y:i.transform[5],w:i.width,s:i.str}));pages.push(items);
     items.sort((a,b)=>b.y-a.y||a.x-b.x);const rows=[];for(const it of items){const r=rows.find(r=>Math.abs(r.y-it.y)<3);if(r)r.it.push(it);else rows.push({y:it.y,it:[it]})}
     rows.sort((a,b)=>b.y-a.y);for(const r of rows){r.it.sort((a,b)=>a.x-b.x);let s='',px=null;for(const it of r.it){if(px!==null)s+=it.x-px>6?'  ':(it.x-px>1?' ':'');s+=it.s;px=it.x+it.w}lines.push({t:s.trim(),y:r.y,p})}}
+  let stmt=null;try{stmt=window.PFStmt?PFStmt.parse(pages):null}catch(e){console.error(e)}
   const text=lines.map(l=>l.t).join('\n'),ym=text.match(/\b(20\d{2})\b/g),defY=ym?+ym.sort((a,b)=>ym.filter(v=>v===b).length-ym.filter(v=>v===a).length)[0]:new Date().getFullYear();
   const dre=/^\s*(\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}|\d{4}-\d{2}-\d{2}|\d{1,2}[ \-][A-Za-z]{3,9}[ \-,]*\d{0,4}|[A-Za-z]{3,9}\.? \d{1,2},? ?\d{0,4}|\d{1,2}[\/.]\d{1,2})(?=\s|$)/;
   const are=/(\(?-?[₹$]?\s?\d[\d,]*\.\d{2}\)?-?\s?(?:CR|DR|Cr|Dr|cr|dr)?)/g,hasAmt=/\d[\d,]*\.\d{2}/;
@@ -781,10 +783,10 @@ async function pdfRows(file,buf){await loadScript('pdf.min.js');await loadScript
     if(r.am.length>=2){const bal=Math.abs(num(r.am[r.am.length-1][0]));if(sign==null&&prevBal!=null)sign=bal<prevBal?-1:bal>prevBal?1:null;prevBal=bal}
     if(sign==null)sign=/deposit|salary|credit|refund|interest|received|reversal|cashback|payment (thank|received)/i.test(desc)?1:-1;
     out.push([r.dm[1].trim(),desc,String(sign*v)])}
-  return{header:['Date','Description','Amount'],rows:out,defY}}
+  return{header:['Date','Description','Amount'],rows:out,defY,stmt}}
 async function fileHash(f){try{const h=await crypto.subtle.digest('SHA-256',await f.arrayBuffer());return[...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){return f.name+'|'+f.size}}
 async function ingest(file){const ext=(file.name.split('.').pop()||'').toLowerCase();let table;let defY=new Date().getFullYear();
-  try{if(ext==='pdf'){const r=await pdfRows(file,await file.arrayBuffer());if(!r.rows.length)throw new Error('No transaction lines found in this PDF. It may be a scanned image. Try the Excel or CSV export from your bank.');table={header:r.header,rows:r.rows};defY=r.defY}
+  try{if(ext==='pdf'){const r=await pdfRows(file,await file.arrayBuffer());if(r.stmt)return{name:file.name,kind:'stmt',stmt:r.stmt,hash:await fileHash(file),size:file.size};if(!r.rows.length)throw new Error('No transaction lines found in this PDF. It may be a scanned image. Try the Excel or CSV export from your bank.');table={header:r.header,rows:r.rows};defY=r.defY}
     else if(ext==='xlsx'||ext==='xls'){await loadScript('xlsx.full.min.js');const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});let best=[];for(const n of wb.SheetNames){const r=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:false,defval:''});if(r.length>best.length)best=r}table=prepTable(best)}
     else if(ext==='ofx'||ext==='qfx'){const tx=await file.text();const rows=[...tx.matchAll(/<STMTTRN>([\s\S]*?)(?=<\/STMTTRN>|<STMTTRN>|<\/BANKTRANLIST>)/gi)].map(m=>{const g=t=>(m[1].match(new RegExp('<'+t+'>([^<\\r\\n]*)','i'))||[])[1]||'';const d=g('DTPOSTED');return[`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`,g('NAME')+' '+g('MEMO'),g('TRNAMT')]});table={header:['Date','Description','Amount'],rows:rows}}
     else{const tx=await file.text();const l=tx.split(/\r?\n/).slice(0,6).join('\n');const dl=[['\t',(l.match(/\t/g)||[]).length],[';',(l.match(/;/g)||[]).length],[',',(l.match(/,/g)||[]).length]].sort((a,b)=>b[1]-a[1])[0][0];table=prepTable(parseCSV(tx,dl))}
@@ -797,7 +799,7 @@ async function ingest(file){const ext=(file.name.split('.').pop()||'').toLowerCa
   else imp.holds=buildHold(imp);return imp}
 async function takeFiles(files){leaveDemoSoon=false;for(const f of files){toast('Reading '+f.name+'…');const i=await ingest(f);if(i)S.queue.push(i)}if(S.queue.length&&$('#modal').hidden)nextImport()}
 let leaveDemoSoon=false;
-function nextImport(){const i=S.queue.shift();if(!i){closeModal();return}S.imp=i;i.kind==='hold'?holdDialog():txDialog()}
+function nextImport(){const i=S.queue.shift();if(!i){closeModal();return}S.imp=i;i.kind==='hold'?holdDialog():i.kind==='stmt'?stmtDialog():txDialog()}
 function colSel(id,t,cur){return`<select id="${id}" data-change="impmap"><option value="-1">— none —</option>${t.header.map((h,i)=>`<option value="${i}" ${i===cur?'selected':''}>${esc(h||'Column '+(i+1))}</option>`).join('')}</select>`}
 function txDialog(){const i=S.imp,{txs,bad}=buildTx(i);i.txs=txs;const prior=S.uploads.find(u=>u.hash===i.hash);const ex=new Map();for(const t of S.demo?[]:S.tx){const k=t.acct+'|'+t.d+'|'+t.amt+'|'+t.desc.toLowerCase();ex.set(k,(ex.get(k)||0)+1)}
   const seen=new Map();let dup=0;for(const t of txs){const k=(i.acct||'new')+'|'+t.d+'|'+t.amt+'|'+t.desc.toLowerCase();seen.set(k,(seen.get(k)||0)+1)}
@@ -827,6 +829,40 @@ function doImport(){const i=S.imp;const wasDemo=S.demo;leaveDemo();
     S.tx.push({id:uid(),d:t.d,desc:t.desc,amt:t.amt,acct:acctId,m:ac.member||mem,cat:categorize(t.desc,t.amt),src});added++}
   const ds=i.txs.map(t=>t.d).sort();S.uploads.unshift({id:src,name:i.name,kind:'tx',at:Date.now(),hash:i.hash,acct:acctId,added,dup,total:i.txs.length,from:ds[0],to:ds[ds.length-1]});
   save();toast(`Added ${added} transactions${dup?`, skipped ${dup} duplicates`:''}`);S.range=S.range;S.view=S.view==='bud'||S.view==='inv'?'overview':S.view;nextImportOrRender()}
+
+/* ---------- bank statements read by column position (see js/statement.js) ---------- */
+const sLabel=(st,s)=>`${st.bank||'Bank'} ${s.type} ••${String(s.number||'').slice(-4)||'----'}`.replace(' ••----','');
+const findAcct=(no,bank)=>no&&S.accts.find(a=>a.no===String(no).slice(-4)&&(!a.bank||!bank||a.bank===bank));
+function stmtCat(sec,t){if(sec.type==='PPF')return t.amt>0&&/int/i.test(t.desc)?'Income':'Transfers';return categorize(t.desc,t.amt)}
+function stmtHolds(st){return st.holdings.map(h=>{const l4=String(h.number).slice(-4),b=st.bank||'Bank';
+  if(h.kind==='FD')return{name:`${b} FD ••${l4}`,type:'FD / RD',invested:Math.round(h.invested),value:Math.round(h.value),maturity:h.maturity||undefined,rate:h.rate};
+  const sec=st.sections.find(x=>x.number===h.number),last=sec&&sec.rows.length?sec.rows[sec.rows.length-1].d:null,fy=last?fyStart(+last.slice(0,4),+last.slice(5,7)):null;
+  const dep=sec&&fy!=null?sec.rows.filter(r=>r.amt>0&&!/int/i.test(r.desc)&&fyStart(+r.d.slice(0,4),+r.d.slice(5,7))===fy).reduce((a,r)=>a+r.amt,0):undefined;
+  return{name:`${b} PPF ••${l4}`,type:'PPF',invested:h.invested,value:h.value,fy:dep}})}
+function stmtDialog(){const i=S.imp,st=i.stmt;i.pick=i.pick||st.sections.map(()=>true);if(i.hold==null)i.hold=true;const holds=stmtHolds(st);
+  const prior=S.uploads.find(u=>u.hash===i.hash),ex=new Map();for(const t of S.demo?[]:S.tx){const k=t.acct+'|'+t.d+'|'+t.amt+'|'+t.desc.toLowerCase();ex.set(k,(ex.get(k)||0)+1)}
+  const card=(s,n)=>{const a=S.demo?null:findAcct(s.number,st.bank),inn=s.rows.filter(r=>r.amt>0),out=s.rows.filter(r=>r.amt<0),c=s.check,good=c.mismatched===0&&c.closingMatch!==false&&c.totalsMatch!==false;
+    let dup=0;if(a){const run=new Map();for(const t of s.rows){const k=a.id+'|'+t.d+'|'+t.amt+'|'+t.desc.toLowerCase(),q=(run.get(k)||0)+1;run.set(k,q);if(q<=(ex.get(k)||0))dup++}}
+    return`<label class="card" style="padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-bottom:10px;cursor:pointer"><input type="checkbox" data-change="stpick" data-n="${n}" ${i.pick[n]?'checked':''} style="width:auto;margin-top:3px"><div>
+     <div style="font-weight:600">${esc(sLabel(st,s))} ${a?`<span class="tag">matches ${esc(a.name)}</span>`:'<span class="tag">new account</span>'}</div>
+     <div class="muted" style="font-size:13px">${s.rows.length} transactions · ${fd(s.rows[0].d)} to ${fd(s.rows[s.rows.length-1].d)} · <span class="in">${money(inn.reduce((x,r)=>x+r.amt,0))} in</span> · <span class="out">${money(Math.abs(out.reduce((x,r)=>x+r.amt,0)))} out</span>${dup?` · <b class="out">${dup} already imported</b>`:''}</div>
+     <div style="font-size:12.5px;margin-top:4px" class="${good?'in':'out'}">${good?'✓ Every row matches the running balance'+(c.totalsMatch?' and the statement totals':''):`⚠ ${c.mismatched} row(s) do not match the running balance. Check the preview.`}</div>
+     ${s.type==='PPF'?'<div class="faint" style="font-size:12.5px;margin-top:2px">Investment account: deposits count as transfers and interest as income, so nothing is counted twice.</div>':''}</div></label>`};
+  modal(`<h2>Import ${esc(i.name)}</h2><p class="sub">${esc(st.bank||'Bank')} statement with ${st.sections.length} account${st.sections.length>1?'s':''}, read by column position in your browser. Nothing is uploaded.</p>
+  <div class="frm"><div class="fld"><label for="imem">Belongs to</label>${sel('imem',memberOpts(),S.member!=='all'&&S.member||S.members[0].id)}</div></div>
+  <div style="margin-top:12px">${st.sections.map(card).join('')}</div>
+  ${holds.length?`<label class="card" style="padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;cursor:pointer"><input type="checkbox" data-change="sthold" ${i.hold?'checked':''} style="width:auto;margin-top:3px"><div><div style="font-weight:600">Update Investments</div><div class="muted" style="font-size:13px">${holds.filter(h=>h.type==='FD / RD').length} fixed deposits and ${holds.filter(h=>h.type==='PPF').length} PPF, worth ${money(holds.reduce((a,h)=>a+h.value,0))}. Existing entries with the same name are updated.</div></div></label>`:''}
+  ${prior?`<div class="note" style="margin-top:12px"><b class="out">You already imported this exact file on ${new Date(prior.at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}.</b> Importing again will add nothing.</div>`:''}
+  <div class="acts"><button class="btn" data-act="impcancel">Skip</button><button class="btn primary" data-act="stmtgo">Import</button></div>`)}
+function doStmt(){const i=S.imp,st=i.stmt,mem=$('#imem').value,wasDemo=S.demo;leaveDemo();const src=uid(),ids=[];let added=0,dup=0,total=0,from='9999',to='0000';
+  st.sections.forEach((s,n)=>{if(!i.pick[n])return;let a=wasDemo?null:findAcct(s.number,st.bank);
+    if(!a){a={id:uid(),name:sLabel(st,s),type:'bank',member:mem,no:String(s.number||'').slice(-4)||undefined,bank:st.bank||undefined};S.accts.push(a)}ids.push(a.id);
+    const ex=new Map();for(const t of S.tx){const k=t.acct+'|'+t.d+'|'+t.amt+'|'+t.desc.toLowerCase();ex.set(k,(ex.get(k)||0)+1)}const run=new Map();
+    for(const t of s.rows){total++;if(t.d<from)from=t.d;if(t.d>to)to=t.d;const k=a.id+'|'+t.d+'|'+t.amt+'|'+t.desc.toLowerCase(),q=(run.get(k)||0)+1;run.set(k,q);if(q<=(ex.get(k)||0)){dup++;continue}
+      S.tx.push({id:uid(),d:t.d,desc:t.desc,amt:t.amt,acct:a.id,m:a.member||mem,cat:stmtCat(s,t),src});added++}});
+  let hn=0;if(i.hold)for(const h of stmtHolds(st)){const e=S.hold.find(x=>x.name.toLowerCase()===h.name.toLowerCase()&&x.m===mem);if(e)Object.assign(e,h);else S.hold.push({id:uid(),m:mem,...h});hn++}
+  S.uploads.unshift({id:src,name:i.name,kind:'tx',at:Date.now(),hash:i.hash,acct:ids[0],accts:ids,added,dup,total,from:total?from:undefined,to:total?to:undefined,holds:hn||undefined});
+  save();toast(`Added ${added} transactions${dup?`, skipped ${dup} duplicates`:''}${hn?`, updated ${hn} investments`:''}`);S.view=S.view==='bud'?'overview':S.view;nextImportOrRender()}
 function doHold(){const i=S.imp,mem=$('#imem').value;leaveDemo();let a=0,u=0;for(const h of i.holds){const e=S.hold.find(x=>x.name.toLowerCase()===h.name.toLowerCase()&&x.m===mem);if(e){e.invested=h.invested;e.value=h.value;u++}else{S.hold.push({id:uid(),m:mem,...h});a++}}
   S.uploads.unshift({id:uid(),name:i.name,kind:'hold',at:Date.now(),hash:i.hash,added:a,updated:u,total:i.holds.length});save();toast(`${a} added, ${u} updated`);S.view='inv';nextImportOrRender()}
 function nextImportOrRender(){if(S.queue.length){render();nextImport()}else{closeModal();render()}}
@@ -891,7 +927,7 @@ const A={
  txsave(){const desc=$('#tdesc').value.trim(),amt=+$('#tamt').value;if(!desc||!amt)return toast('Add a description and an amount');leaveDemo();let ac=$('#tacct').value;
   if(ac==='cash'||!S.accts.length){let c=S.accts.find(a=>a.name==='Cash');if(!c){c={id:uid(),name:'Cash',type:'bank',member:S.members[0].id};S.accts.push(c)}ac=c.id}
   const a=$('#ttype').value==='in'?amt:-amt;const cat=$('#tcat').value||categorize(desc,a);S.tx.push({id:uid(),d:$('#tdate').value,desc,amt:a,acct:ac,m:acctOf(ac).member,cat});save();closeModal();render();toast('Added')},
- impcancel(){nextImportOrRender()},impgo(){doImport()},holdgo(){doHold()},
+ stmtgo(){doStmt()},impcancel(){nextImportOrRender()},impgo(){doImport()},holdgo(){doHold()},
  pwok(){const v=$('#pw').value;window.__pw&&window.__pw(v)},pwcancel(){window.__pw&&window.__pw(null);closeModal()},
  updel(e){if(!e.dataset.sure){e.dataset.sure=1;e.textContent='Confirm';return}const id=e.dataset.id,n=S.tx.filter(t=>t.src===id).length;S.tx=S.tx.filter(t=>t.src!==id);S.uploads=S.uploads.filter(u=>u.id!==id);save();render();toast(`Removed ${n} transactions`)},
  cmd(){openCmd()},fab(){openCmd('',['Actions'])},more(){openCmd('',['Go to'])},
@@ -936,6 +972,7 @@ const C={
  pwmeter(el){const n=strength(el.value),m=$('#pwm');m.style.width=(n*25)+'%';m.style.background=n>=3?'var(--in)':n===2?'var(--warn)':'var(--out)'},
  autolock(el){autoLockMin=+el.value;saveMeta();toast(autoLockMin?`Auto-lock after ${autoLockMin} min`:'Auto-lock is off')},
  htype(el){const f=$('#hfy');if(!f.value&&LIMITS[el.value])f.placeholder='Up to '+money(LIMITS[el.value])},
+ stpick(el){S.imp.pick[+el.dataset.n]=el.checked},sthold(el){S.imp.hold=el.checked},
  iacct(el){S.imp.acct=el.value==='new'?null:el.value;if(el.value==='new'&&!S.imp.nm)S.imp.nm='';readImp();txDialog()},
  impmap(){readImp();txDialog()}
 };

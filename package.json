@@ -4,8 +4,8 @@
   "version": "0.0.1",
   "description": "Portfolio — private family finance dashboard. Static site, no build step.",
   "scripts": {
-    "check": "node --check js/app.js && node --check js/theme.js",
-    "test": "node tests/e2e.js && node tests/update.js"
+    "check": "node --check js/app.js && node --check js/theme.js && node --check js/statement.js",
+    "test": "node tests/statement.js && node tests/e2e.js && node tests/update.js"
   },
   "devDependencies": { "playwright": "^1.49.0" }
 }

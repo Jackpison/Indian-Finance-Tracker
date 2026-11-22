@@ -4,6 +4,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+- Multi-account bank PDFs (checked against a real ICICI annual statement): savings, PPF and other account sections are split by account, narrations that wrap over several lines are re-attached to the right row, and every section is reconciled against the running balance and the statement totals before import.
+- Fixed deposits and PPF balances listed in a statement update Investments automatically.
+- Statement dialog shows per-account results and flags files that were already imported.
+- Fees category (debit card fees, SMS charges); interest on FD/RD counts as income; FD bookings and closures count as investments.
+- Parser tests with a fictional ICICI-style sample PDF (`samples/icici-style-statement.pdf`).
+
+### Changed
+- Reference numbers (NEFT/UPI/IMPS ids) are stripped from imported narrations.
+
 ## [0.0.1] - 2026-11-22
 
 First release.

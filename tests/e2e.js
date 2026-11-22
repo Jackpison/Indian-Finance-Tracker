@@ -22,6 +22,22 @@ await p.waitForSelector('.sheet',{timeout:30000}).catch(()=>{});
 ok(!!(await p.$('.sheet'))&&/Salary|SWIGGY|Income/i.test(await p.textContent('.sheet')),'PDF statement is parsed');
 await p.click('[data-act=impcancel]');await p.waitForTimeout(300);
 
+console.log('Multi-account statement import');
+await p.setInputFiles('#file',ROOT+'/samples/icici-style-statement.pdf');
+await p.waitForSelector('[data-act=stmtgo]',{timeout:30000});
+ok(/Savings|PPF/.test(await p.textContent('.sheet')),'multi-account PDF opens the statement dialog');
+await p.click('[data-act=stmtgo]');await p.waitForTimeout(1200);
+await p.click('#tabs [data-v=inv]');await p.waitForTimeout(500);
+const invTxt=await p.textContent('#main');
+ok(/FD ••0222/.test(invTxt)&&/PPF ••2333/.test(invTxt),'FDs and PPF added to investments');
+await p.setInputFiles('#file',ROOT+'/samples/icici-style-statement.pdf');
+await p.waitForSelector('[data-act=stmtgo]',{timeout:30000});
+ok(/already/i.test(await p.textContent('.sheet')),'re-importing the statement is flagged');
+await p.click('[data-act=stmtgo]');await p.waitForTimeout(800);
+const toast=await p.textContent('#toast');
+ok(/\b0\b|nothing|skipped|duplicate/i.test(toast),'second import adds nothing ('+toast+')');
+await p.click('#tabs [data-v=tx]');
+
 console.log('XSS hardening');
 const evil='<img src=x onerror="window.__xss=1">';
 const f=path.join(tmp,'evil.csv');fs.writeFileSync(f,csv([['01/02/2025',`"${evil} <script>window.__xss=1</script>"`,'100.00','','900.00']]));
