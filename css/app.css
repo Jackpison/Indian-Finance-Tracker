@@ -14,15 +14,15 @@
   --font:'Geist',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#090D17;--surface:#121827;--surface-2:#182033;--line:#243049;--fg:#E9EDF7;--muted:#98A4BC;--faint:#6B7791;
-  --accent:#8196FF;--accent-soft:#1B2447;--accent-fg:#0A0E18;
-  --in:#3DDBA0;--in-soft:#10322A;--out:#FF7B6E;--out-soft:#3A1C1B;--warn:#F5B63B;--warn-soft:#3A2C10;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 14px 30px -18px rgba(0,0,0,.6);--glow:rgba(129,150,255,.14);--accent2:#5FD4F0;--glow2:rgba(129,150,255,.22);--glow3:rgba(95,212,240,.10);color-scheme:dark}}
+  --bg:#0f0f0f;--surface:#1f2020;--surface-2:#272828;--line:#323333;--fg:#EDEEEE;--muted:#A3A6A6;--faint:#767979;
+  --accent:#8196FF;--accent-soft:#252A44;--accent-fg:#0A0A0A;
+  --in:#3DDBA0;--in-soft:#16302A;--out:#FF7B6E;--out-soft:#3A2220;--warn:#F5B63B;--warn-soft:#38301A;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 14px 30px -18px rgba(0,0,0,.6);--glow:rgba(129,150,255,.09);--accent2:#5FD4F0;--glow2:rgba(129,150,255,.22);--glow3:rgba(95,212,240,.06);color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#090D17;--surface:#121827;--surface-2:#182033;--line:#243049;--fg:#E9EDF7;--muted:#98A4BC;--faint:#6B7791;
-  --accent:#8196FF;--accent-soft:#1B2447;--accent-fg:#0A0E18;
-  --in:#3DDBA0;--in-soft:#10322A;--out:#FF7B6E;--out-soft:#3A1C1B;--warn:#F5B63B;--warn-soft:#3A2C10;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 14px 30px -18px rgba(0,0,0,.6);--glow:rgba(129,150,255,.14);--accent2:#5FD4F0;--glow2:rgba(129,150,255,.22);--glow3:rgba(95,212,240,.10);color-scheme:dark}
+  --bg:#0f0f0f;--surface:#1f2020;--surface-2:#272828;--line:#323333;--fg:#EDEEEE;--muted:#A3A6A6;--faint:#767979;
+  --accent:#8196FF;--accent-soft:#252A44;--accent-fg:#0A0A0A;
+  --in:#3DDBA0;--in-soft:#16302A;--out:#FF7B6E;--out-soft:#3A2220;--warn:#F5B63B;--warn-soft:#38301A;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 14px 30px -18px rgba(0,0,0,.6);--glow:rgba(129,150,255,.09);--accent2:#5FD4F0;--glow2:rgba(129,150,255,.22);--glow3:rgba(95,212,240,.06);color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased;
