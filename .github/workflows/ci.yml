@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+
+      - name: JavaScript syntax
+        run: npm run check
+
+      - name: Vendored libraries are unmodified
+        run: cd vendor && sha256sum -c SHA256SUMS
+
+      - name: No third-party URLs or unsafe patterns in the app
+        run: |
+          if grep -nE "https?://" index.html css/app.css js/app.js js/theme.js | grep -vE "w3.org|flaticon.com|github.com" ; then
+            echo "::error::External URL found; the app must make no third-party requests"; exit 1
+          fi
+          if grep -nE "\beval\(|new Function\(|document\.write\(|\bon(click|error|load)=" index.html js/app.js js/theme.js; then
+            echo "::error::Unsafe pattern found"; exit 1
+          fi
+
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: npm test

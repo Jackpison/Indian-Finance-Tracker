@@ -1,0 +1,29 @@
+# Portfolio — Apache / cPanel settings. Upload next to index.html (rename to .htaccess).
+DirectoryIndex index.html
+Options -Indexes
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "no-referrer"
+  Header always set X-Robots-Tag "noindex, nofollow, noarchive"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  # Everything runs in your browser; nothing is sent anywhere.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+  <FilesMatch "\.(html)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
+
+# Force HTTPS (needed for the passcode lock, which uses the browser's crypto API)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} off
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# Optional: password-protect the folder without Cloudflare (create the file in cPanel > Directory Privacy)
+# AuthType Basic
+# AuthName "Portfolio"
+# AuthUserFile /home/CPANELUSER/.htpasswds/public_html/finance/passwd
+# Require valid-user

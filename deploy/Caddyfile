@@ -1,0 +1,12 @@
+# caddy run --config deploy/Caddyfile   (HTTPS is automatic for a real domain)
+finance.example.com {
+  root * /var/www/portfolio
+  file_server
+  header {
+    X-Content-Type-Options nosniff
+    X-Frame-Options DENY
+    Referrer-Policy no-referrer
+    X-Robots-Tag "noindex, nofollow, noarchive"
+  }
+  # Optional password: basicauth { you JDJhJDE0... }   (generate with: caddy hash-password)
+}

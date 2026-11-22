@@ -1,46 +1,117 @@
-<p align="center"><img src="assets/logo.png" width="96" alt="Pocketbook logo"></p>
+<p align="center"><img src="assets/logo.png" width="96" alt="Portfolio logo"></p>
 
-# Pocketbook
+<h1 align="center">Portfolio</h1>
+<p align="center"><b>A private money dashboard for Indian families.</b><br>
+Upload bank and credit card statements, see where the money goes, track investments and goals.<br>
+No server. No database. No tracking. Your data stays in your browser.</p>
 
-A private, single-page money dashboard for Indian families. Upload bank and credit card statements
-(PDF, Excel, CSV, OFX) and get spending, income, budgets, recurring bills and an investments tracker
-(stocks, mutual funds, PPF, EPF, NPS, Sukanya Samriddhi, LIC, FDs, gold).
-
-**No server, no build step, no tracking.** Everything runs in the browser. Your data is stored in that
-browser's `localStorage` and is never sent anywhere, so this repo contains code only.
+<p align="center"><img src="docs/screenshots/overview-light.png" alt="Overview" width="900"></p>
 
 ## Features
 
-- Import PDF (including password-protected bank PDFs), `.xlsx`/`.xls`, CSV/TSV, OFX/QFX
-- Broker or mutual fund holdings exports are recognised and update the Investments tab
-- Duplicate protection: whole-file hash check plus row-level matching (account, date, amount, description)
-- Upload log: every file, what it added, what was skipped; any import can be removed again
-- Family members, bank accounts and credit cards (limits, utilisation, per-card spend)
-- ₹ with lakh/crore formatting, Indian financial year (Apr–Mar) range
-- Auto-categorisation tuned for UPI/NEFT/IMPS narrations; fix a category once and it is remembered
-- Budgets, recurring payment detection, PPF/Sukanya/NPS annual limit trackers
-- Light, dark and system themes with an animated switch
-- Backup and restore as a JSON file
+| | |
+|---|---|
+| **Import anything** | PDF (including password-protected), Excel, CSV/TSV, OFX/QFX. Broker and fund holdings files update Investments. |
+| **Never double counts** | File fingerprint plus row-level matching skips duplicates. An upload log shows what each file added and lets you remove it. |
+| **Ten years and more** | IndexedDB storage, yearly roll-ups and FY ranges keep it fast with tens of thousands of rows. |
+| **Family** | Members, accounts, credit cards with limits and utilisation, per-person views. |
+| **Analytics** | Spending flow, income-to-spend Sankey, merchant treemap, daily calendar, year-by-month heatmap, year-over-year lines, savings rate, 3-month outlook, unusual payments, category growth. |
+| **Investments** | Stocks, mutual funds, PPF, EPF, NPS, Sukanya Samriddhi, LIC, FDs, gold, with annual limit trackers. |
+| **Goals, budgets, bills** | Goal funding, category budgets, recurring payment detection and upcoming bills. |
+| **Vault** | Card, account, PAN, Aadhaar and policy numbers. Last four characters show, the rest after you click Reveal. One-click copy. |
+| **Copy anything** | Every transaction can be copied; copy a whole filtered list for Excel or as CSV. |
+| **Themes** | Light, dark and system with an animated reveal. |
 
-## Run locally
+<p align="center">
+<img src="docs/screenshots/analytics-light.png" width="440" alt="Analytics trends">
+<img src="docs/screenshots/analytics-categories.png" width="440" alt="Analytics categories">
+<img src="docs/screenshots/analytics-patterns.png" width="440" alt="Analytics patterns">
+<img src="docs/screenshots/analytics-dark.png" width="440" alt="Dark mode">
+</p>
+<p align="center">
+<img src="docs/screenshots/mobile-overview.png" width="220" alt="Mobile overview">
+<img src="docs/screenshots/mobile-analytics.png" width="220" alt="Mobile analytics">
+<img src="docs/screenshots/vault.png" width="440" alt="Vault">
+</p>
 
-Open `index.html` in a browser. Try `samples/hdfc-style-statement.csv`.
+## Install on cPanel (shared hosting)
 
-## Deploy on cPanel
+You need a domain with cPanel. About five minutes.
 
-1. File Manager → `public_html/pocketbook/` (or a subdomain folder) → upload `index.html`.
-2. Put the hostname behind Cloudflare Access (Zero Trust → Access → Applications → Self-hosted),
-   with an allow policy for your email addresses. A tunnel is optional for a static site; a proxied DNS record works.
-3. Because data lives in each browser, Access protects the page, and each device keeps its own copy.
-   Use **Settings → Download backup** to move data between devices.
+1. **Get the files.** On GitHub choose **Code, Download ZIP**. Or run `./deploy/make-zip.sh` to build a ready-made `portfolio.zip` that already includes `.htaccess`.
+2. **Open File Manager** in cPanel and go to `public_html`. Create a folder, for example `finance`. (Use a subdomain's folder if you prefer `finance.yourdomain.com`.)
+3. **Upload** the ZIP into that folder, then right-click it and choose **Extract**.
+4. **Check the layout.** Directly inside the folder you should see `index.html`, `css/`, `js/`, `assets/`, `vendor/`. If there is an extra folder level, move the contents up.
+5. **Security headers.** Copy `deploy/htaccess.txt` to `.htaccess` in the same folder (the ZIP from step 1 already has it). In File Manager settings turn on **Show Hidden Files** to see it. This adds a strict Content Security Policy, forces HTTPS and blocks search engines.
+6. **HTTPS.** Open **SSL/TLS Status** and run AutoSSL for the domain. The passcode lock needs HTTPS.
+7. **Visit** `https://yourdomain.com/finance/`.
+8. **Protect it** (pick one or both):
+   - In the app: **Settings, Security, Set a passcode.** Your data is encrypted on the device.
+   - On the server: cPanel **Directory Privacy** to add a username and password to the folder.
+   - Optional: Cloudflare Access (below).
 
-### Optional: fully self-contained
+To update later, upload the new files over the old ones. Your data lives in each browser, so it is untouched.
 
-`index.html` loads Google Fonts, pdf.js and SheetJS from public CDNs (only when needed). To avoid any third-party
-request, download `pdf.min.js`, `pdf.worker.min.js` (pdf.js 3.11.174) and `xlsx.full.min.js` (SheetJS 0.18.5) into
-`vendor/`, and point the three URLs near the top of the `pdfRows`/`ingest` functions to them.
+> The same steps are in the app under **Settings, Install & hosting guide**.
+
+### Optional: Cloudflare Access
+
+Cloudflare is not required. If you want a login in front of the site: **Zero Trust, Access, Applications, Add an application, Self-hosted**, enter your hostname and path, then add a policy allowing only your email addresses. A proxied DNS record is enough; a tunnel is not needed for a static site.
+
+## Other ways to host
+
+Everything is static files, so any host works. Ready-made configs are in [`deploy/`](deploy).
+
+| Option | How |
+|---|---|
+| **Open locally** | Double-click `index.html`. Try `samples/hdfc-style-statement.csv`. The passcode lock needs HTTPS or `localhost`. |
+| **GitHub Pages** | Run the **Deploy to GitHub Pages** workflow (Actions tab). A public repo means a public site, so set a passcode and keep your data out of the repo. |
+| **Netlify / Vercel** | Import the repo. Publish directory is the repo root. `deploy/netlify.toml` and `deploy/vercel.json` add headers. |
+| **Cloudflare Pages** | Connect the repo, no build command, output directory `/`. |
+| **Docker** | `docker compose -f deploy/docker-compose.yml up -d --build`, then open `http://localhost:8080`. |
+| **nginx / Caddy** | Serve the folder. See `deploy/nginx.conf` and `deploy/Caddyfile`. |
+
+## Security and privacy
+
+- **Local only.** Nothing is uploaded. The app makes no network requests; fonts and the PDF/Excel libraries are served from this folder (`vendor/`, checksums in `vendor/SHA256SUMS`).
+- **Encryption at rest (optional).** With a passcode, data is encrypted in IndexedDB using AES-256-GCM. The key comes from the passcode through PBKDF2 with SHA-256 (600,000 rounds). The passcode is never stored, so **there is no recovery**. Keep an encrypted backup.
+- **Vault** values are masked on screen and need the passcode to exist; revealed values hide again after 15 seconds. Do not store CVVs or PINs.
+- **Auto-lock** after inactivity; locking reloads the page so decrypted data leaves memory.
+- **Strict CSP.** Only same-origin scripts, no inline scripts, no `eval`. All user text is escaped before display. Copied CSV/TSV is neutralised against spreadsheet formula injection.
+- **Limits.** Anyone with your unlocked browser or a malicious browser extension can see what the page shows. A public site without a passcode keeps data in each visitor's own browser only, but the page itself is public.
+
+## Development
+
+```bash
+npm install
+npx playwright install chromium
+npm run check   # syntax
+npm test        # end-to-end: import, dedupe, PDF, XSS, 10-year load, encryption
+node tests/screenshots.js   # regenerate docs/screenshots
+```
+
+```
+index.html        page shell
+css/app.css       styles (themes, components, charts)
+js/app.js         application
+js/theme.js       sets the theme before first paint
+vendor/           pdf.js, SheetJS, Geist fonts (no CDN)
+assets/           logo
+samples/          example statements
+deploy/           .htaccess, nginx, Caddy, Docker, Netlify, Vercel, zip builder
+tests/            Playwright end-to-end tests
+docs/screenshots/ README images
+.github/          CI, Pages deploy, Dependabot
+```
+
+CI runs syntax checks, verifies vendored files, blocks external URLs and unsafe patterns, scans for secrets and runs the end-to-end suite.
 
 ## Notes
 
-PDF statements differ a lot between banks. Always check the preview before importing. Scanned (image-only)
-PDFs cannot be read; use the Excel or CSV export from net banking instead.
+PDF layouts vary a lot between banks. Always check the preview before importing. Scanned (image-only) PDFs cannot be read; use the Excel or CSV export from net banking instead.
+
+## Credits
+
+<a href="https://www.flaticon.com/free-icons/budget" title="budget icons">Budget icons created by Icon Place - Flaticon</a>
+
+Fonts: Geist by Vercel (SIL Open Font License). PDF parsing by pdf.js (Mozilla). Spreadsheet parsing by SheetJS.
