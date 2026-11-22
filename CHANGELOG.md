@@ -3,6 +3,8 @@
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Fixed
+- The Updates page said `update.php` is in the release ZIP. It is not: get it, and `update.config.example.php`, from the `deploy/` folder of the GitHub repository.
 
 ## [0.5.1] - 2026-11-22
 ### Fixed
