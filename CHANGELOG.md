@@ -3,6 +3,8 @@
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [0.5.0] - 2026-11-22
 ### Security
 - Bots and scrapers are refused: new `robots.txt` bans all crawlers (AI crawlers by name), and the Apache (`.htaccess`), nginx and Caddy configs return 403 to known bots, scripted clients and empty user agents. This stops honest and lazy crawlers. Your data never sits on the server, and with a passcode set it is also encrypted in the browser and nothing is shown until you unlock.
 - Docker image now includes `sw.js` and the manifest.
