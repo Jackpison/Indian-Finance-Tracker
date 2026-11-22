@@ -1,6 +1,17 @@
 # caddy run --config deploy/Caddyfile   (HTTPS is automatic for a real domain)
 finance.example.com {
   root * /var/www/portfolio
+  # Refuse bots, scrapers and scripted clients (robots.txt stays readable).
+  @bots {
+    not path /robots.txt
+    header_regexp ua User-Agent (?i)(bot|crawl|spider|scrap|slurp|curl|wget|python|java/|libwww|go-http|okhttp|httpclient|headless|phantom|selenium|puppeteer|playwright|gptbot|ccbot|claude|anthropic|perplexity|bytespider|amazonbot|semrush|ahrefs|mj12|dotbot|petalbot|yandex|baidu|facebookexternalhit|bingpreview|archive\.org)
+  }
+  respond @bots 403
+  @noua {
+    not path /robots.txt
+    header User-Agent ""
+  }
+  respond @noua 403
   file_server
   header {
     X-Content-Type-Options nosniff

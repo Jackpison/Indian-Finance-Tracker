@@ -40,6 +40,11 @@ await p.click('#themebtn');await p.waitForTimeout(500);const t1=await th();await
 ok(['light','dark'].includes(t1)&&['light','dark'].includes(t2)&&t1!==t2,'button flips between light and dark ('+t1+' then '+t2+')');
 console.log('Owner tags');
 for(const [v,sel] of [['tx','.txr .tg.own'],['bal','.lr .tg.own'],['inv','.tbl .tg.own']]){await p.click('#tabs [data-v='+v+']');await p.waitForTimeout(500);ok((await p.$$(sel)).length>0,'owner tag shown on '+v)}
+console.log('Bots and scrapers');
+const robots=fs.readFileSync(path.join(ROOT,'robots.txt'),'utf8');
+ok(/User-agent: \*\s+Disallow: \//.test(robots)&&/GPTBot/.test(robots)&&/ClaudeBot/.test(robots),'robots.txt bans all crawlers, AI ones by name');
+for(const f of ['deploy/htaccess.txt','deploy/nginx.conf','deploy/Caddyfile'])ok(/gptbot/i.test(fs.readFileSync(path.join(ROOT,f),'utf8')),f+' refuses known bots');
+ok(/'robots\.txt'/.test(fs.readFileSync(path.join(ROOT,'deploy/update.php'),'utf8')),'update.php may install robots.txt');
 console.log('Offline shell');
 for(const n of ['sw.js','manifest.webmanifest']){ok(fs.existsSync(path.join(ROOT,n)),n+' exists')}
 JSON.parse(fs.readFileSync(path.join(ROOT,'manifest.webmanifest')));ok(true,'manifest is valid JSON');

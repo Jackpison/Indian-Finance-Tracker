@@ -120,6 +120,7 @@ const readRaw=()=>p.evaluate(()=>new Promise(r=>{const q=indexedDB.open('portfol
 await p.waitForFunction(()=>true);let raw='';for(let i=0;i<40;i++){raw=await readRaw();if(raw.includes('"enc":true'))break;await p.waitForTimeout(500)}  /* encrypting a large state takes a moment */
 ok(raw.includes('"enc":true')&&!/SWIGGY|SALARY|GREENVIEW/i.test(raw),'stored state is encrypted, no plaintext');
 await p.reload();await p.waitForTimeout(1000);ok(await p.isVisible('#lock'),'locked after reload');
+ok((await p.textContent('#main')).trim()===''&&!/SWIGGY|SALARY|GREENVIEW|₹/i.test(await p.textContent('body')),'nothing from your data is on the page while locked');
 await p.fill('#lockpw','nope');await p.click('#lockgo');await p.waitForTimeout(1800);ok(await p.isVisible('#lock'),'wrong passcode rejected');
 await p.fill('#lockpw','Correct-Horse-9!');await p.click('#lockgo');await p.waitForTimeout(3000);ok(!(await p.isVisible('#lock')),'correct passcode unlocks');
 await p.click('#tabs [data-v=vault]');await p.waitForTimeout(400);

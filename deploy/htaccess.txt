@@ -25,6 +25,16 @@ Options -Indexes
   </Files>
 </IfModule>
 
+# Refuse bots, scrapers and scripted clients (they get 403 before any file is served).
+# This stops honest and lazy crawlers; the passcode is what protects your data.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{REQUEST_URI} !robots\.txt$
+  RewriteCond %{HTTP_USER_AGENT} ^$ [OR]
+  RewriteCond %{HTTP_USER_AGENT} (bot|crawl|spider|scrap|slurp|curl|wget|python|java/|libwww|go-http|okhttp|httpclient|headless|phantom|selenium|puppeteer|playwright|gptbot|ccbot|claude|anthropic|perplexity|bytespider|amazonbot|semrush|ahrefs|mj12|dotbot|petalbot|yandex|baidu|facebookexternalhit|bingpreview|archive\.org) [NC]
+  RewriteRule ^ - [F,L]
+</IfModule>
+
 # Force HTTPS (needed for the passcode lock, which uses the browser's crypto API)
 <IfModule mod_rewrite.c>
   RewriteEngine On
