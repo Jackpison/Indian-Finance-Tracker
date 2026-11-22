@@ -1,7 +1,7 @@
-@font-face{font-family:'Geist';font-style:normal;font-weight:400;font-display:swap;src:url(../vendor/fonts/Geist-400.ttf) format('truetype')}
-@font-face{font-family:'Geist';font-style:normal;font-weight:500;font-display:swap;src:url(../vendor/fonts/Geist-500.ttf) format('truetype')}
-@font-face{font-family:'Geist';font-style:normal;font-weight:600;font-display:swap;src:url(../vendor/fonts/Geist-600.ttf) format('truetype')}
-@font-face{font-family:'Geist';font-style:normal;font-weight:700;font-display:swap;src:url(../vendor/fonts/Geist-700.ttf) format('truetype')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:400;font-display:swap;src:url(../vendor/fonts/Inter-400.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:500;font-display:swap;src:url(../vendor/fonts/Inter-500.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:600;font-display:swap;src:url(../vendor/fonts/Inter-600.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:700;font-display:swap;src:url(../vendor/fonts/Inter-700.woff2) format('woff2')}
 @font-face{font-family:'Geist Mono';font-style:normal;font-weight:400;font-display:swap;src:url(../vendor/fonts/GeistMono-400.ttf) format('truetype')}
 @font-face{font-family:'Geist Mono';font-style:normal;font-weight:500;font-display:swap;src:url(../vendor/fonts/GeistMono-500.ttf) format('truetype')}
 /* Layout: sticky-free header, pill tabs, bento grid of rounded surfaces; numbers in mono tabular figures */
@@ -10,19 +10,19 @@
   --accent:#3B5BFF;--accent-soft:#E8ECFF;--accent-fg:#FFFFFF;
   --in:#12936A;--in-soft:#DDF4EC;--out:#E04538;--out-soft:#FDE6E3;--warn:#B87800;--warn-soft:#FFF0CC;
   --shadow:0 1px 2px rgba(13,18,32,.05),0 14px 30px -18px rgba(13,18,32,.18);
-  --glow:rgba(59,91,255,.10);--accent2:#10B5D6;--glow2:rgba(59,91,255,.18);--glow3:rgba(16,181,214,.10);
-  --font:'Geist',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --glow:rgba(59,91,255,.10);--accent2:#12936A;--glow2:rgba(59,91,255,.18);--glow3:rgba(16,181,214,.10);
+  --font:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#0f0f0f;--surface:#1f2020;--surface-2:#272828;--line:#323333;--fg:#EDEEEE;--muted:#A3A6A6;--faint:#767979;
-  --accent:#8196FF;--accent-soft:#252A44;--accent-fg:#0A0A0A;
-  --in:#3DDBA0;--in-soft:#16302A;--out:#FF7B6E;--out-soft:#3A2220;--warn:#F5B63B;--warn-soft:#38301A;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 14px 30px -18px rgba(0,0,0,.6);--glow:rgba(129,150,255,.09);--accent2:#5FD4F0;--glow2:rgba(129,150,255,.22);--glow3:rgba(95,212,240,.06);color-scheme:dark}}
+  --bg:#0a0c0d;--surface:#111416;--surface-2:#171b1e;--line:#1f2528;--fg:#F2F4F5;--muted:#9BA3A8;--faint:#6B7479;
+  --accent:#7BA7FF;--accent-soft:#1A2B4D;--accent-fg:#06101F;
+  --in:#2FD27A;--in-soft:#12301F;--out:#F5605B;--out-soft:#3A1A1A;--warn:#F5B63B;--warn-soft:#38301A;
+  --shadow:0 0 0 rgba(0,0,0,0),0 14px 30px -20px rgba(0,0,0,.7);--glow:rgba(123,167,255,.07);--accent2:#2FD27A;--glow2:rgba(123,167,255,.18);--glow3:rgba(47,210,122,.05);color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#0f0f0f;--surface:#1f2020;--surface-2:#272828;--line:#323333;--fg:#EDEEEE;--muted:#A3A6A6;--faint:#767979;
-  --accent:#8196FF;--accent-soft:#252A44;--accent-fg:#0A0A0A;
-  --in:#3DDBA0;--in-soft:#16302A;--out:#FF7B6E;--out-soft:#3A2220;--warn:#F5B63B;--warn-soft:#38301A;
-  --shadow:0 1px 2px rgba(0,0,0,.3),0 14px 30px -18px rgba(0,0,0,.6);--glow:rgba(129,150,255,.09);--accent2:#5FD4F0;--glow2:rgba(129,150,255,.22);--glow3:rgba(95,212,240,.06);color-scheme:dark}
+  --bg:#0a0c0d;--surface:#111416;--surface-2:#171b1e;--line:#1f2528;--fg:#F2F4F5;--muted:#9BA3A8;--faint:#6B7479;
+  --accent:#7BA7FF;--accent-soft:#1A2B4D;--accent-fg:#06101F;
+  --in:#2FD27A;--in-soft:#12301F;--out:#F5605B;--out-soft:#3A1A1A;--warn:#F5B63B;--warn-soft:#38301A;
+  --shadow:0 0 0 rgba(0,0,0,0),0 14px 30px -20px rgba(0,0,0,.7);--glow:rgba(123,167,255,.07);--accent2:#2FD27A;--glow2:rgba(123,167,255,.18);--glow3:rgba(47,210,122,.05);color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased;
@@ -31,7 +31,7 @@ body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--font);-we
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
-.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:'tnum','cv11';letter-spacing:-.02em;font-weight:650}
 .top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;margin-bottom:14px}
 .brand{white-space:nowrap;display:flex;align-items:center;gap:10px;font-weight:650;font-size:17px;letter-spacing:-.02em}
 .grow{flex:1}.bar .pills{margin-left:auto;justify-content:flex-end}
@@ -172,8 +172,8 @@ body,.card,.btn,.pill,.tabs,.sheet,.in-t,.csel,.theme,.banner,.lrow,.chip,.tag{t
 
 /* ===== UI pass 2: aurora, spotlight, beam, dock, palette ===== */
 :root{--grid:rgba(13,18,32,.05);--spot:rgba(59,91,255,.10)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--grid:rgba(255,255,255,.045);--spot:rgba(129,150,255,.16)}}
-:root[data-theme="dark"]{--grid:rgba(255,255,255,.045);--spot:rgba(129,150,255,.16)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--grid:rgba(255,255,255,.045);--spot:rgba(123,167,255,.12)}}
+:root[data-theme="dark"]{--grid:rgba(255,255,255,.045);--spot:rgba(123,167,255,.12)}
 body{background-image:none}
 body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:44px 44px;-webkit-mask-image:radial-gradient(ellipse 85% 55% at 50% 0%,#000 25%,transparent 75%);mask-image:radial-gradient(ellipse 85% 55% at 50% 0%,#000 25%,transparent 75%)}
 .aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}

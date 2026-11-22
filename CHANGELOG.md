@@ -12,6 +12,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Parser tests with a fictional ICICI-style sample PDF (`samples/icici-style-statement.pdf`).
 
 ### Changed
+- New look: near-black dark theme with blue and green accents, Inter typeface (vendored, no CDN); numbers use Inter with tabular figures.
 - Reference numbers (NEFT/UPI/IMPS ids) are stripped from imported narrations.
 
 ## [0.0.1] - 2026-11-22

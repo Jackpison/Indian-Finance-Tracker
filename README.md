@@ -121,7 +121,7 @@ CHANGELOG.md      release history
 css/app.css       styles (themes, components, charts)
 js/app.js         application
 js/theme.js       sets the theme before first paint
-vendor/           pdf.js, SheetJS, Geist fonts (no CDN)
+vendor/           pdf.js, SheetJS, Inter and Geist Mono fonts (no CDN)
 assets/           logo
 samples/          example statements
 deploy/           .htaccess, nginx, Caddy, Docker, Netlify, Vercel, zip builder, version bump, update.php
@@ -140,4 +140,4 @@ Multi-account statements with Deposits / Withdrawals / Balance columns (tested o
 
 <a href="https://www.flaticon.com/free-icons/budget" title="budget icons">Budget icons created by Icon Place - Flaticon</a>
 
-Fonts: Geist by Vercel (SIL Open Font License). PDF parsing by pdf.js (Mozilla). Spreadsheet parsing by SheetJS.
+Fonts: Inter by Rasmus Andersson and Geist Mono by Vercel (SIL Open Font License). PDF parsing by pdf.js (Mozilla). Spreadsheet parsing by SheetJS.
