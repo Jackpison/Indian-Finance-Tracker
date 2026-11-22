@@ -20,9 +20,9 @@ const post = async (body) => { const r = await fetch(BASE + 'sync.php', { method
   const G = await launch({ noGate: true }), g = G.page;
   await g.goto(BASE + 'index.html'); await g.waitForSelector('#gate:not([hidden])');
   ok((await g.textContent('#main')).trim() === '', 'a new browser shows the create-passcode gate and no app');
-  await g.fill('#gpw1', 'short'); await g.fill('#gpw2', 'short'); await g.click('#gatego');
+  await g.fill('#gpw1', 'short'); await g.fill('#gpw2', 'short'); await g.click('#gatego'); await g.waitForFunction(() => document.getElementById('gateerr').textContent.length > 0);
   ok(/at least 10/.test(await g.textContent('#gateerr')), 'a short passcode is refused');
-  await g.fill('#gpw1', PASS); await g.fill('#gpw2', 'something else entirely'); await g.click('#gatego');
+  await g.fill('#gpw1', PASS); await g.fill('#gpw2', 'something else entirely'); await g.click('#gatego'); await g.waitForFunction(() => /match/.test(document.getElementById('gateerr').textContent));
   ok(/do not match/.test(await g.textContent('#gateerr')), 'mismatched passcodes are refused');
   await g.reload(); await g.waitForSelector('#gate:not([hidden])');
   ok(await g.isVisible('#gate'), 'reloading without a passcode shows the gate again');
@@ -64,6 +64,7 @@ const post = async (body) => { const r = await fetch(BASE + 'sync.php', { method
   await a.waitForSelector('[data-act=syncnow]', { timeout: 30000 });
   const info = (await post({ a: 'info' })).j;
   ok(info.exists && info.rev === 1, 'first push stored revision 1');
+  for (let k = 0; k < 40 && !(fs.existsSync(path.join(site, 'sync-data/blob.json')) && fs.statSync(path.join(site, 'sync-data/blob.json')).size > 1000); k++) await new Promise(r => setTimeout(r, 250));
   const stored = fs.readFileSync(path.join(site, 'sync-data/blob.json'), 'utf8');
   ok(!/SWIGGY|SALARY|Asha|Ravi|₹/i.test(stored) && stored.length > 1000, 'the file on the server is ciphertext, none of the data is readable');
   const meta = fs.readFileSync(path.join(site, 'sync-data/meta.json'), 'utf8');

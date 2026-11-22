@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.6.0'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
+const VERSION='0.6.1'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -994,6 +994,7 @@ function updView(){const u=S._u||{},tab=S._ut||'update',web=location.protocol.st
   const body=tab==='log'?`<div class="scard"><div class="srow"><div class="st"><b>Release notes</b><span style="white-space:pre-wrap;display:block;margin-top:6px">${u.notes?esc(u.notes):'Press Check now on the Update tab to load the latest release notes from GitHub.'}</span></div></div></div>`:
   `<div class="scard"><div class="srow"><div class="st"><b>Update from GitHub</b><span>${status}</span></div><div class="sc"><span class="faint" style="font-size:13px">Installed v${VERSION}</span>${pill}<button class="btn sm" data-act="updcheck" ${u.busy?'disabled':''}>Check now</button>${u.done?'<button class="btn sm primary" data-act="reload">Reload</button>':''}</div></div>
   ${u.newer&&!u.done?`<div class="srow"><div class="st"><b>Install v${esc(u.latest)}</b><span>Checking is open to you. Installing needs the update password from <code>update.config.php</code> on your server. It is kept for this browser session only.</span></div><div class="sc"><input class="in-t" id="utok" type="password" autocomplete="off" placeholder="Update password" value="${esc(sget('pf.ut'))}" style="width:200px" aria-label="Update password"><button class="btn sm primary" data-act="updinstall" ${u.busy?'disabled':''}>Install</button></div></div>`:''}</div>${setup}
+  ${u.needcfg?`<div class="srow wide"><div class="st"><b>One-time step on your server</b><span>Your server has no update password yet. In your host's file manager, open the folder that holds <code>index.html</code>, create a file named <code>update.config.php</code> and paste exactly this into it (the password below was just generated in your browser and is already filled in here). Save it, then press Install again.</span></div><textarea class="in-t" id="cfgtxt" readonly rows="6" style="width:100%;font-family:ui-monospace,monospace;font-size:12.5px">&lt;?php\nreturn [\n    'token' => '${u.needcfg}',\n    'repo'  => 'Jackpison/Indian-Finance-Tracker',\n];</textarea><div class="sc"><button class="btn sm primary" data-act="cfgcopy">Copy file contents</button></div></div>`:''}
   <div class="note" style="margin-top:14px">Installing downloads the release from GitHub onto your server, checks its SHA-256, keeps a backup of the replaced files and never touches your data, which lives in this browser.</div>`;
   return`<div class="setp"><div style="margin-bottom:14px">${tabs}</div>${body}</div>`}
 async function updCall(act){const tok=act==='install'?(($('#utok')||{}).value||sget('pf.ut')):'';if(act==='install'){if(!tok){S._u={...S._u,err:'Enter your update password to install.'};return render()}sput('pf.ut',tok)}
@@ -1001,7 +1002,8 @@ async function updCall(act){const tok=act==='install'?(($('#utok')||{}).value||s
   try{const fd=new FormData();fd.append('api','1');if(tok)fd.append('token',tok);fd.append('do',act==='install'?'install':'check');
     const r=await fetch('update.php',{method:'POST',body:fd,cache:'no-store'});let j=null;try{j=await r.json()}catch(e){}
     if(r.status===404||(!j&&r.status!==200)){S._u={nophp:r.status===404,err:r.status===404?'':'The updater is not set up correctly on your server ('+r.status+').'};return render()}
-    if(!j||j.error)S._u={err:(j&&j.error)||'Unexpected reply from the updater.'};
+    if(j&&j.needconfig){const g=hex(crypto.getRandomValues(new Uint8Array(24)));sput('pf.ut',g);S._u={...S._u,busy:false,err:'',needcfg:g}}
+    else if(!j||j.error)S._u={...(act==='install'?S._u:{}),busy:false,err:(j&&j.error)||'Unexpected reply from the updater.'};
     else if(act==='install')S._u={...S._u,busy:false,done:j.version,err:''};
     else S._u={installed:j.installed,latest:j.latest,newer:j.newer,notes:j.notes};
   }catch(e){S._u={err:'Could not reach the updater.'}}
@@ -1044,7 +1046,7 @@ const A={
  xrow(e){const r=e.closest('.txr');if(!r)return;const o=!r.classList.contains('open');document.querySelectorAll('.txr.open').forEach(x=>{x.classList.remove('open');x.firstElementChild.setAttribute('aria-expanded','false')});if(o){r.classList.add('open');e.setAttribute('aria-expanded','true')}S.xo=o?e.dataset.id:null},
  fpanel(e){S.fp=!S.fp;const p=$('#fpan');if(p)p.classList.toggle('open',S.fp);e.setAttribute('aria-expanded',String(S.fp))},
  fchip(e){const l=e.dataset.k==='c'?S.fcats:S.faccts,v=e.dataset.v,i=l.indexOf(v);i<0?l.push(v):l.splice(i,1);txRefresh()},
- ftype(e){S.ftype=e.dataset.v;txRefresh()},fclear(){S.fcats=[];S.faccts=[];S.ftype='all';S.q='';txRefresh()},sort(e){const k=e.dataset.v;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:-1};renderTxRows()},sgo(e){const s=document.getElementById(e.dataset.v);if(s)s.scrollIntoView({behavior:'smooth',block:'start'})},pgprev(){S.page--;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},pgnext(){S.page++;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},
+ ftype(e){S.ftype=e.dataset.v;txRefresh()},fclear(){S.fcats=[];S.faccts=[];S.ftype='all';S.q='';txRefresh()},sort(e){const k=e.dataset.v;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:-1};renderTxRows()},cfgcopy(){const v=$('#cfgtxt').value;try{navigator.clipboard.writeText(v);toast('Copied. Paste it into update.config.php on your server.')}catch(e){$('#cfgtxt').select()}},sgo(e){const s=document.getElementById(e.dataset.v);if(s)s.scrollIntoView({behavior:'smooth',block:'start'})},pgprev(){S.page--;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},pgnext(){S.page++;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},
  import(){$('#file').click()},add(){addTxDialog()},addhold(){holdForm()},settings(){settings()},close(){closeModal()},
  edithold(e){holdForm(S.hold.find(h=>h.id===e.dataset.id))},
  holdsave(e){const n=$('#hname').value.trim();if(!n)return toast('Give it a name');const o={name:n,type:$('#htype').value,m:$('#hm').value,invested:+$('#hinv').value||0,value:+$('#hval').value||+$('#hinv').value||0,fy:$('#hfy').value===''?undefined:+$('#hfy').value,maturity:$('#hmat').value||undefined};

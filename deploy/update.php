@@ -132,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['api'] ?? '') === '1') { //
             jout(['installed' => $cur, 'latest' => $rel['version'], 'newer' => version_compare($rel['version'], $cur, '>'), 'notes' => mb_substr($rel['notes'], 0, 6000)]);
         } catch (Throwable $e) { jout(['error' => $e->getMessage()], 500); }
     }
-    if (!$configured) jout(['error' => 'Installing needs a password. Copy update.config.example.php to update.config.php, set a long random password (24+ characters), then try again.'], 403);
+    if (!$configured) jout(['error' => 'Installing needs a password. Copy update.config.example.php to update.config.php, set a long random password (24+ characters), then try again.', 'needconfig' => true], 403);
     if (!hash_equals((string)$cfg['token'], (string)($_POST['token'] ?? ''))) jout(['error' => 'Wrong password.'], 403); // installing needs the password
     $lk = fopen($root . '/.update.lock', 'c');
     if (!$lk || !flock($lk, LOCK_EX | LOCK_NB)) jout(['error' => 'An update is already running.'], 409);

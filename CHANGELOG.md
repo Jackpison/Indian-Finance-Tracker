@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-22
+### Fixed
+- **Install on the Updates page no longer ends in a dead-end error.** When the server has no update password yet, the page now generates a strong one in your browser and shows the exact `update.config.php` to paste on your server (with a Copy button), then Install works. Check now never needed a password. The very first jump from an older version still needs the release ZIP extracted by hand, or `update.config.php` created manually from `update.config.example.php`.
+
 ## [0.6.0] - 2026-11-22
 ### Security
 - **The passcode is now mandatory.** A new browser shows a "Create your passcode" screen before anything else; existing unlocked data is encrypted the moment you choose one (10+ characters). "Turn off passcode" is gone. If the saved data is encrypted but its passcode settings are missing, the app stops and changes nothing instead of overwriting.
