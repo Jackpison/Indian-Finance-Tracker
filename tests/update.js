@@ -9,9 +9,8 @@ const TYPES={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   await new Promise(r=>srv.listen(0,'127.0.0.1',r));
   const base='http://127.0.0.1:'+srv.address().port;
   const h=await launch(),p=h.page;
-  let remote='1.0.0';
+  const local=JSON.parse(fs.readFileSync(path.join(ROOT,'version.json'))).version;let remote=local;
   await p.route('**/version.json*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({version:remote})}));
-  const local=JSON.parse(fs.readFileSync(path.join(ROOT,'version.json'))).version;
   console.log('Update check');
   await p.goto(base+'/');await p.waitForTimeout(800);
   ok(local===remote,'version.json matches the running version ('+local+')');

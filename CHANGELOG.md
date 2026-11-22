@@ -4,9 +4,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-11-22
+## [0.0.1] - 2026-11-22
 
-First public release.
+First release.
 
 ### Added
 - Import bank and credit card statements from PDF (including password-protected), Excel, CSV/TSV and OFX/QFX; holdings files update Investments.
@@ -29,5 +29,5 @@ First public release.
 - SheetJS 0.20.3; pdf.js runs with font `eval` disabled.
 - Copied CSV/TSV is neutralised against spreadsheet formula injection.
 
-[Unreleased]: https://github.com/Jackpison/Indian-Finance-Tracker/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/Jackpison/Indian-Finance-Tracker/releases/tag/v1.0.0
+[Unreleased]: https://github.com/Jackpison/Indian-Finance-Tracker/compare/v0.0.1...HEAD
+[0.0.1]: https://github.com/Jackpison/Indian-Finance-Tracker/releases/tag/v0.0.1
