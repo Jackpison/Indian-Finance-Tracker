@@ -49,5 +49,10 @@ const root = path.join(__dirname, '..');
   // Real statements carry other banks' IFSC codes and names inside NEFT/IMPS narrations. They must never outvote the header.
   const noisy = pages.map((pg, i) => i < 2 ? [...pg, ...[1, 2, 3, 4, 5, 6].map(k => ({ x: 120, y: 60 + k * 9, w: 300, s: 'NEFT-HDFC0001234-ACME PAYMENTS HDFC BANK LTD ' + k }))] : pg);
   assert.strictEqual(S.parse(noisy).bank, 'ICICI', 'counterparty IFSC codes and bank names in narrations do not decide the bank');
+  assert.strictEqual(S.canonBank('ICICI Bank Ltd'), 'ICICI', 'ICICI Bank Ltd');
+  assert.strictEqual(S.canonBank('hdfc bank'), 'HDFC', 'hdfc bank');
+  assert.strictEqual(S.canonBank('State Bank of India'), 'SBI', 'State Bank of India');
+  assert.strictEqual(S.canonBank('Bank of Baroda'), 'BANK OF BARODA', 'Bank of Baroda stays');
+  assert.strictEqual(S.canonBank('Union Bank of India'), 'UNION BANK', 'Union Bank of India');
   console.log('bank detection OK');
 })().catch(e => { console.error(e); process.exit(1); });

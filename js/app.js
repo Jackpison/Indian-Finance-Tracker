@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.6.2'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
+const VERSION='0.6.3'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -67,6 +67,7 @@ let _db=null;const getDB=()=>_db||(_db=new Promise((res,rej)=>{const r=indexedDB
 async function kvGet(k){try{const db=await getDB();return await new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}catch(e){try{return JSON.parse(localStorage.getItem('ift.'+k)||'null')||undefined}catch(x){return undefined}}}
 async function kvSet(k,v){try{const db=await getDB();await new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error||new Error('aborted'))});return true}catch(e){console.error('IndexedDB write failed',e);try{localStorage.setItem('ift.'+k,JSON.stringify(v));return true}catch(x){return false}}}
 async function kvDel(k){try{const db=await getDB();await new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=res;t.onerror=()=>rej(t.error)})}catch(e){try{localStorage.removeItem('ift.'+k)}catch(x){}}}
+const canonBank=b=>window.PFStmt?PFStmt.canonBank(b):String(b||'').trim().toUpperCase();
 const TE=new TextEncoder(),TD=new TextDecoder();
 async function deriveKey(pass,salt,iter){const km=await crypto.subtle.importKey('raw',TE.encode(pass),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
 async function encStr(key,str){const iv=crypto.getRandomValues(new Uint8Array(12));return{iv:b64(iv),ct:b64(await crypto.subtle.encrypt({name:'AES-GCM',iv},key,TE.encode(str)))}}
@@ -81,7 +82,8 @@ function applyState(j){if(!j)return;
 /* Tidy-up that runs whenever data is loaded: merges one account that got split by letter case, drops
    deposits that an older statement listed but a newer one no longer does. Reports what it changed. */
 function repairData(){const r={acct:0,tx:0,fd:0};
-  for(const a of S.accts)if(a.bank&&a.bank!==a.bank.toUpperCase()){a.bank=a.bank.toUpperCase();if(a.name.toLowerCase().startsWith(a.bank.toLowerCase()))a.name=a.bank+a.name.slice(a.bank.length)}
+  for(const a of S.accts)if(a.bank){const nb=canonBank(a.bank);if(nb!==a.bank){const old=a.bank;a.bank=nb;if(a.name.toLowerCase().startsWith(old.toLowerCase()))a.name=nb+a.name.slice(old.length)}}
+  for(const h of S.hold)if(h.bank){const nb=canonBank(h.bank);if(nb!==h.bank){const old=h.bank;h.bank=nb;if(h.name&&h.name.toLowerCase().startsWith(old.toLowerCase()))h.name=nb+h.name.slice(old.length)}}
   const seen=new Map();
   for(const a of [...S.accts]){if(!a.no||!a.bank)continue;const k=[a.bank,a.no,a.member,a.type].join('|'),f=seen.get(k);if(!f){seen.set(k,a);continue}
     const cnt=m=>{const o=new Map();for(const t of S.tx)if(t.acct===m.id){const q=t.d+'|'+t.amt+'|'+t.desc.toLowerCase();o.set(q,(o.get(q)||0)+1)}return o},cf=cnt(f);
@@ -809,7 +811,12 @@ async function ingest(file){const ext=(file.name.split('.').pop()||'').toLowerCa
     const probe=buildTx({...imp});const pos=probe.txs.filter(t=>t.amt>0).length;if(imp.map.debit<0&&imp.map.credit<0&&probe.txs.length>=8&&pos/probe.txs.length>.95&&imp.acctType==='card')imp.flip=true}
   else imp.holds=buildHold(imp);return imp}
 async function takeFiles(files){for(const f of files){toast('Reading '+f.name+'…');const i=await ingest(f);if(i)S.queue.push(i)}if(S.queue.length&&$('#modal').hidden)nextImport()}
-function nextImport(){const i=S.queue.shift();if(!i){closeModal();return}S.imp=i;i.kind==='hold'?holdDialog():i.kind==='stmt'?stmtDialog():txDialog()}
+function adoptBank(i){if(i.kind!=='stmt')return;const st=i.stmt;st.bank=canonBank(st.bank);
+  const seen=new Set();for(const s of st.sections){const l4=String(s.number||'').slice(-4);if(!l4)continue;for(const a of S.accts)if(a.no===l4&&a.bank)seen.add(canonBank(a.bank))}
+  const has=st.sections.some(s=>findAcct(s.number,st.bank)&&findAcct(s.number,st.bank).bank);
+  if(seen.size===1&&!has){const b=[...seen][0];if(b!==st.bank){i.bankHint=`The statement read as ${st.bank||'no bank'}, but you already have this account number under ${b}, so ${b} is used. Change it below if that is wrong.`;st.bank=b;st.bankSure=true}}
+  else if(!st.bankSure&&!has)i.bankHint='This statement does not clearly name its bank. Please check it below before importing.'}
+function nextImport(){const i=S.queue.shift();if(!i){closeModal();return}S.imp=i;adoptBank(i);i.kind==='hold'?holdDialog():i.kind==='stmt'?stmtDialog():txDialog()}
 function colSel(id,t,cur){return`<select id="${id}" data-change="impmap"><option value="-1">— none —</option>${t.header.map((h,i)=>`<option value="${i}" ${i===cur?'selected':''}>${esc(h||'Column '+(i+1))}</option>`).join('')}</select>`}
 function txDialog(){const i=S.imp,{txs,bad}=buildTx(i);i.txs=txs;const prior=S.uploads.find(u=>u.hash===i.hash);const ex=new Map();for(const t of S.tx){const k=t.acct+'|'+t.d+'|'+t.amt+'|'+t.desc.toLowerCase();ex.set(k,(ex.get(k)||0)+1)}
   const seen=new Map();let dup=0;for(const t of txs){const k=(i.acct||'new')+'|'+t.d+'|'+t.amt+'|'+t.desc.toLowerCase();seen.set(k,(seen.get(k)||0)+1)}
@@ -882,7 +889,7 @@ function stmtDialog(){const i=S.imp,st=i.stmt;i.pick=i.pick||st.sections.map(()=
      <div style="font-size:12.5px;margin-top:4px" class="${good?'in':'out'}">${good?'✓ Every row matches the running balance'+(c.totalsMatch?' and the statement totals':''):`⚠ ${c.mismatched} row(s) do not match the running balance. Check the preview.`}</div>
      ${s.type==='PPF'?'<div class="faint" style="font-size:12.5px;margin-top:2px">Investment account: deposits count as transfers and interest as income, so nothing is counted twice.</div>':''}</div></label>`};
   modal(`<h2>Import ${esc(i.name)}</h2><p class="sub">${esc(st.bank||'Bank')} statement with ${st.sections.length} account${st.sections.length>1?'s':''}, read by column position in your browser. Nothing is uploaded.</p>
-  <div class="frm"><div class="fld"><label for="imem">Belongs to</label>${sel('imem',stmtOwnerOpts(),i.mem||stmtOwner(st))}</div><div class="fld"><label for="ibank">Bank <span class="faint">(read from the statement, change it if wrong)</span></label><input class="in-t" id="ibank" value="${esc(st.bank||'')}" data-change="stbank" placeholder="e.g. ICICI" autocomplete="off"></div></div>
+  <div class="frm"><div class="fld"><label for="imem">Belongs to</label>${sel('imem',stmtOwnerOpts(),i.mem||stmtOwner(st))}</div><div class="fld"><label for="ibank">Bank <span class="faint">(read from the statement, change it if wrong)</span></label><input class="in-t" id="ibank" value="${esc(st.bank||'')}" data-change="stbank" placeholder="e.g. ICICI" autocomplete="off">${i.bankHint?`<small class="${st.bankSure?'faint':'out'}" style="display:block;margin-top:6px;line-height:1.4">${esc(i.bankHint)}</small>`:''}</div></div>
   <div style="margin-top:12px">${st.sections.map(card).join('')}</div>
   ${holds.length?`<label class="card" style="padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;cursor:pointer"><input type="checkbox" data-change="sthold" ${i.hold?'checked':''} style="width:auto;margin-top:3px"><div><div style="font-weight:600">Update Investments</div><div class="muted" style="font-size:13px">${holds.filter(h=>h.type==='FD / RD').length} fixed deposits and ${holds.filter(h=>h.type==='PPF').length} PPF, worth ${money(holds.reduce((a,h)=>a+h.value,0))}. Existing entries with the same name are updated.</div></div></label>`:''}
   ${prior?`<div class="note" style="margin-top:12px"><b class="out">You already imported this exact file on ${new Date(prior.at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}.</b> Importing again will add nothing.</div>`:''}
@@ -933,7 +940,7 @@ function balMatrix(){const ms=S.members,all=a=>a;
   const cell=v=>`<td class="num ${v<0?'out':''}">${v?money(v):'<span class="faint">—</span>'}</td>`;
   return`<div class="ch"><div><h3>Total and by person</h3><div class="cs">Bank balances are the latest known; investments use their latest value.</div></div></div><div class="tbl"><table><thead><tr><th></th>${cols?ms.map(m=>`<th><span class="dot" style="--c:${m.color}"></span> ${esc(m.name)}</th>`).join(''):''}<th>Total</th></tr></thead><tbody>${rows.map(([l,f])=>`<tr><td>${esc(l)}</td>${cols?ms.map(m=>cell(f(m))).join(''):''}${cell(ms.reduce((x,m)=>x+f(m),0))}</tr>`).join('')}<tr class="tot"><td>Net worth</td>${cols?ms.map(m=>cell(tot(m))).join(''):''}${cell(ms.reduce((x,m)=>x+tot(m),0))}</tr></tbody></table></div>`}
 /* A statement can be read with the wrong bank; rename it on accounts and on deposits/PPF read from statements. */
-function renameBank(from,to,mem){let n=0;const f=String(from||'').toLowerCase();if(!f||!to)return 0;const fix=(o,k)=>{if((o.bank||'').toLowerCase()!==f)return;o.bank=to;if(o[k].toLowerCase().startsWith(f))o[k]=to+o[k].slice(f.length);n++};
+function renameBank(from,to,mem){to=canonBank(to);let n=0;const f=String(from||'').toLowerCase();if(!f||!to)return 0;const fix=(o,k)=>{if((o.bank||'').toLowerCase()!==f)return;o.bank=to;if(o[k].toLowerCase().startsWith(f))o[k]=to+o[k].slice(f.length);n++};
   for(const x of S.accts)if(!mem||x.member===mem)fix(x,'name');for(const h of S.hold)if(!mem||h.m===mem)fix(h,'name');return n}
 function balDialog(a){const b=curBal(a);modal(`<h2>${esc(a.name)}</h2><p class="sub">${a.type==='card'?'Enter what you owe on this card right now.':'Enter the balance in this account right now.'} Later imports update it automatically.</p><div class="frm"><div class="fld"><label for="sbv">${a.type==='card'?'Amount owed':'Balance'}</label><input id="sbv" inputmode="decimal" value="${b==null?'':Math.abs(b)}"></div><div class="fld"><label for="sbd">As of</label><input id="sbd" type="date" value="${iso(new Date())}"></div><div class="fld"><label for="sbm">Owner</label>${sel('sbm',memberOpts(),a.member)}</div><div class="fld"><label for="sbb">Bank</label><input id="sbb" value="${esc(a.bank||'')}" placeholder="e.g. ICICI"></div><div class="fld full"><label class="chk"><input type="checkbox" id="sbc" ${a.closed?'checked':''}> This account is closed. Keep its history but leave it out of net worth.</label></div></div><div class="acts"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="sbsave" data-id="${a.id}">Save</button></div>`)}
 function doStmt(){const i=S.imp,st=i.stmt,mem=$('#imem').value;
@@ -1022,14 +1029,29 @@ function settingsView(){
   ${sec('Backup',row('Download a backup',bk.last?`Last backup ${bkDays()===0?'today':bkDays()+' days ago'}`:'No backup made yet',b('Download','bkdl','primary')+b('Copy','bkcopy')+b('Restore…','bkshow'))+row('Browser storage',persisted===true?'Protected: your browser will not clear this data automatically.':persisted===false?'Not protected: a browser can clear site data when it needs space. Keep regular backups.':'Status unknown in this browser.',`<span class="tg ${persisted?'ok':'warn'}">${persisted?'Protected':'Backups advised'}</span>`)+row('Backup reminder','How often to nudge you',`<select class="csel" data-change="bkevery" aria-label="Reminder interval">${[[7,'Every week'],[30,'Every month'],[90,'Every 3 months'],[0,'Never']].map(([v,l])=>`<option value="${v}" ${bk.every===v?'selected':''}>${l}</option>`).join('')}</select>`)+'<div id="bkarea"></div>')}
   ${sec('Data tools',row('Fix a bank name','A statement can be read with the wrong bank (for example SBI instead of ICICI). Rename it on every account, deposit and PPF. Duplicates and old deposits are then tidied.',`<input class="in-t" id="bkfrom" placeholder="Wrong, e.g. SBI" style="width:130px" aria-label="Wrong bank name"><input class="in-t" id="bkto" placeholder="Right, e.g. ICICI" style="width:130px" aria-label="Right bank name">${b('Rename','bkfix')}`,1)+row('Transfers between your accounts',`Same amount out of one account and into another within 3 days is treated as a transfer, not spending. ${xfCount()?`${xfCount()} matched so far.`:'None matched yet.'}`,b('Find transfers','xfind')+(xfCount()?b('Remove links','xfundo'):'')))}
   ${sec('About',row('Version',`Portfolio v${VERSION}. Install new releases from the Updates page.`,b('Open Updates','updpage','primary')+' '+b('Check this page','chkupd'))+row('Install and hosting','cPanel, GitHub Pages and other hosts',b('Open guide','guide')))}
-  ${sec('Danger zone',row('Delete all my data','Removes everything from this browser. Download a backup first.',b('Delete everything','clear','danger','clr')))}</div></div>`}
+  ${sec('Danger zone',row('Delete one person\'s data','Removes the transactions, accounts, investments, vault items and import history of one family member, and leaves everyone else untouched. Use this to start one person over.',b('Delete a person\'s data…','memwipe','danger'),1)+row('Delete all my data','Removes everything from this browser. Download a backup first.',b('Delete everything','clear','danger','clr')))}</div></div>`}
+function memCounts(id){const ac=S.accts.filter(a=>a.member===id).length;return{tx:S.tx.filter(t=>t.m===id).length,ac,hold:S.hold.filter(h=>h.m===id).length,vault:S.vault.filter(v=>v.m===id).length}}
+function mwDialog(sel0,rm0){const id=sel0||S.members[0].id,c=memCounts(id),m=S.members.find(x=>x.id===id);
+  modal(`<h2>Delete one person's data</h2><p class="sub">Removes only what belongs to the person you choose. Everyone else's data stays. Download a backup first if you are unsure. This cannot be undone.</p>
+  <div class="frm"><div class="fld full"><label for="mwm">Person</label>${sel('mwm',S.members.map(x=>[x.id,x.name]),id,'data-change="mwsel"')}</div></div>
+  <div class="card" style="margin:12px 0"><div class="muted" style="line-height:1.7"><b>${esc(m.name)}</b> has <b>${c.tx.toLocaleString('en-IN')}</b> transactions, <b>${c.ac}</b> accounts and cards, <b>${c.hold}</b> investments and <b>${c.vault}</b> vault items. Their import history is removed too, so the same files can be imported again.</div></div>
+  <label class="chk"><input type="checkbox" id="mwr" ${rm0?'checked':''} ${S.members.length<2?'disabled':''}> Also remove ${esc(m.name)} from the family</label>
+  <div class="acts"><button class="btn" data-act="close">Cancel</button><button class="btn" data-act="bkdl">Download backup first</button><button class="btn danger" data-act="mwgo">Delete ${esc(m.name)}'s data</button></div>`)}
+function wipeMember(id,removePerson){const m=S.members.find(x=>x.id===id);if(!m)return;
+  const accIds=new Set(S.accts.filter(a=>a.member===id).map(a=>a.id));
+  for(const t of S.tx)if(t.m===id&&t.xf)unlinkXf(t);
+  S.tx=S.tx.filter(t=>t.m!==id&&!accIds.has(t.acct));S.accts=S.accts.filter(a=>a.member!==id);S.hold=S.hold.filter(h=>h.m!==id);S.vault=S.vault.filter(v=>v.m!==id);
+  S.uploads=S.uploads.filter(u=>!(u.acct&&accIds.has(u.acct))&&!(u.accts&&u.accts.length&&u.accts.every(x=>accIds.has(x))));
+  if(removePerson&&S.members.length>1)S.members=S.members.filter(x=>x.id!==id);
+  if(S.member===id||!S.members.some(x=>x.id===S.member))S.member='all';
+  save();closeModal();settings();render();toast(`Deleted ${m.name}'s data`)}
 function settings(){closeModal();S.view='settings';render();window.scrollTo(0,0)}
 
 /* ---------- events ---------- */
 const A={
  setbal(e){balDialog(S.accts.find(a=>a.id===e.dataset.id))},
  sbsave(e){const a=S.accts.find(x=>x.id===e.dataset.id),v=parseFloat(String($('#sbv').value).replace(/,/g,''));if(!isFinite(v))return toast('Enter an amount');a.bal=a.type==='card'?-Math.abs(v):v;a.balAsOf=$('#sbd').value||iso(new Date());a.closed=$('#sbc').checked||undefined;
-  const nb=String($('#sbb').value||'').trim().toUpperCase(),nm=$('#sbm').value;if(nb&&nb!==(a.bank||'')){if(a.bank)renameBank(a.bank,nb,a.member);else{a.bank=nb}}
+  const nb=canonBank($('#sbb').value),nm=$('#sbm').value;if(nb&&nb!==(a.bank||'')){if(a.bank)renameBank(a.bank,nb,a.member);else{a.bank=nb}}
   if(nm&&nm!==a.member){for(const t of S.tx)if(t.acct===a.id)t.m=nm;a.member=nm}
   repairData();save();closeModal();render();toast('Saved')},
  bkfix(){const f=String($('#bkfrom').value||'').trim(),t=String($('#bkto').value||'').trim().toUpperCase();if(!f||!t)return toast('Type the wrong bank name and the right one');const n=renameBank(f,t,null);if(!n)return toast('No account or deposit uses "'+f+'"');repairData();save();render();toast(`Renamed ${n} item${n>1?'s':''} to ${t}`)},
@@ -1046,7 +1068,7 @@ const A={
  xrow(e){const r=e.closest('.txr');if(!r)return;const o=!r.classList.contains('open');document.querySelectorAll('.txr.open').forEach(x=>{x.classList.remove('open');x.firstElementChild.setAttribute('aria-expanded','false')});if(o){r.classList.add('open');e.setAttribute('aria-expanded','true')}S.xo=o?e.dataset.id:null},
  fpanel(e){S.fp=!S.fp;const p=$('#fpan');if(p)p.classList.toggle('open',S.fp);e.setAttribute('aria-expanded',String(S.fp))},
  fchip(e){const l=e.dataset.k==='c'?S.fcats:S.faccts,v=e.dataset.v,i=l.indexOf(v);i<0?l.push(v):l.splice(i,1);txRefresh()},
- ftype(e){S.ftype=e.dataset.v;txRefresh()},fclear(){S.fcats=[];S.faccts=[];S.ftype='all';S.q='';txRefresh()},sort(e){const k=e.dataset.v;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:-1};renderTxRows()},cfgcopy(){const v=$('#cfgtxt').value;try{navigator.clipboard.writeText(v);toast('Copied. Paste it into update.config.php on your server.')}catch(e){$('#cfgtxt').select()}},sgo(e){const s=document.getElementById(e.dataset.v);if(s)s.scrollIntoView({behavior:'smooth',block:'start'})},pgprev(){S.page--;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},pgnext(){S.page++;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},
+ ftype(e){S.ftype=e.dataset.v;txRefresh()},fclear(){S.fcats=[];S.faccts=[];S.ftype='all';S.q='';txRefresh()},sort(e){const k=e.dataset.v;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:-1};renderTxRows()},cfgcopy(){const v=$('#cfgtxt').value;try{navigator.clipboard.writeText(v);toast('Copied. Paste it into update.config.php on your server.')}catch(e){$('#cfgtxt').select()}},memwipe(){mwDialog()},mwgo(){const id=$('#mwm').value,rm=$('#mwr').checked;wipeMember(id,rm)},sgo(e){const s=document.getElementById(e.dataset.v);if(s)s.scrollIntoView({behavior:'smooth',block:'start'})},pgprev(){S.page--;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},pgnext(){S.page++;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},
  import(){$('#file').click()},add(){addTxDialog()},addhold(){holdForm()},settings(){settings()},close(){closeModal()},
  edithold(e){holdForm(S.hold.find(h=>h.id===e.dataset.id))},
  holdsave(e){const n=$('#hname').value.trim();if(!n)return toast('Give it a name');const o={name:n,type:$('#htype').value,m:$('#hm').value,invested:+$('#hinv').value||0,value:+$('#hval').value||+$('#hinv').value||0,fy:$('#hfy').value===''?undefined:+$('#hfy').value,maturity:$('#hmat').value||undefined};
@@ -1083,7 +1105,8 @@ const A={
 };
 document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(t&&A[t.dataset.act]){A[t.dataset.act](t,e)}else if(e.target.id==='modal'&&!$('[data-act=pwok]'))closeModal()});
 const C={
- stbank(el){const i=S.imp;if(!i||!i.stmt)return;const m=$('#imem');if(m)i.mem=m.value;i.stmt.bank=String(el.value||'').trim().toUpperCase();stmtDialog()},
+ mwsel(){mwDialog($('#mwm').value,$('#mwr').checked)},
+ stbank(el){const i=S.imp;if(!i||!i.stmt)return;const m=$('#imem');if(m)i.mem=m.value;i.stmt.bank=canonBank(el.value);i.stmt.bankSure=true;i.bankHint='';stmtDialog()},
  perpage(el){S.limit=+el.value;S.page=0;renderTxRows()},
  cat(el){const t=S.tx.find(x=>x.id===el.dataset.id);if(t.xf){const p=S.tx.find(x=>x!==t&&x.xf===t.xf);unlinkXf(t);t.xn=1;if(p)p.xn=1}t.cat=el.value;const k=mkey(t.desc);S.rules[k]=el.value;let n=0;for(const x of S.tx)if(x!==t&&mkey(x.desc)===k&&x.cat!==el.value){x.cat=el.value;n++}save();renderTxRows();toast(n?`Moved ${n+1} “${pretty(k)}” transactions to ${el.value}`:'Category updated')},
  cur(el){S.cur=el.value;for(const k in nfs)delete nfs[k];save();settings();render()},

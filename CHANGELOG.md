@@ -4,6 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-11-22
+### Added
+- **Delete one person's data** (Settings, Danger zone): removes the transactions, accounts, investments, vault items and import history of one family member and leaves everyone else untouched, with an option to remove the person too. It shows what will be removed and offers a backup first, so you can start one person over without erasing the whole family.
+
+### Fixed
+- **One bank, one spelling.** "ICICI BANK", "ICICI Bank Ltd" and "ICICI" were treated as different banks, so one account showed twice (the old one marked "Statement is old") with two balances. Bank names are now stored in one canonical form (ICICI, HDFC, SBI, UNION BANK and so on), and existing split accounts, deposits and PPF merge automatically on load; the newest balance wins. Fix a bank name and the Bank fields use the same spelling.
+- **Statements that name the wrong bank.** When the account number on a statement matches an account you already have under another bank, that bank is used and the import dialog says so. When a statement does not clearly name its bank, the dialog now warns you to check the Bank field instead of guessing silently.
+
 ## [0.6.2] - 2026-11-22
 ### Fixed
 - The release build for 0.6.1 stopped on a flaw in one of its own tests (it searched the encrypted file's text for names, which random base64 can contain by chance). The test now checks the decoded bytes. There is no change to the app itself, so 0.6.1's changes are included here.

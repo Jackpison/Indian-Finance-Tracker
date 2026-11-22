@@ -89,6 +89,43 @@ console.log('Updater');
  ok(/DEFAULT_REPO/.test(php),'checking works without a config file');
  const gate=php.indexOf("if (!$configured) jout"),cmp=php.indexOf("hash_equals((string)$cfg['token']");
  ok(gate>0&&cmp>gate,'installing without a configured password is refused before any password is compared');}
+console.log('Bank spelling, bank hint and per-person erase');
+const fam={format:'ift-backup-1',enc:false,data:{tx:[
+ {id:'x1',d:'2022-03-01',desc:'OLD SHOP',amt:-100,acct:'q1',m:'m1'},{id:'x2',d:'2026-11-10',desc:'NEW SHOP',amt:-200,acct:'q2',m:'m1'},
+ {id:'x3',d:'2026-11-11',desc:'RAVI CAFE',amt:-50,acct:'q3',m:'m2'},{id:'x4',d:'2026-11-12',desc:'ASHA PHARMACY',amt:-80,acct:'q4',m:'m1'}],
+ hold:[{id:'y1',name:'ICICI BANK FD ••1111',type:'FD / RD',m:'m1',invested:100000,value:101000,stm:true,bank:'ICICI BANK',asof:'2022-03-30'},{id:'y2',name:'HDFC FD ••2222',type:'FD / RD',m:'m2',invested:50000,value:51000,bank:'HDFC'}],
+ uploads:[{id:'u1',name:'asha.csv',kind:'tx',at:1,hash:'h-asha',acct:'q4',added:1,dup:0,total:1}],vault:[{id:'v1',m:'m1',kind:'PAN',label:'Asha PAN',value:'ABCDE1234F'}],
+ members:[{id:'m1',name:'Asha',color:'#3B5BFF'},{id:'m2',name:'Ravi',color:'#E0457B'}],
+ accts:[{id:'q1',name:'ICICI BANK Savings ••0872',type:'bank',member:'m1',no:'0872',bank:'ICICI BANK',bal:16721,balAsOf:'2022-03-30'},
+  {id:'q2',name:'ICICI Savings ••0872',type:'bank',member:'m1',no:'0872',bank:'ICICI',bal:86030,balAsOf:'2026-11-16'},
+  {id:'q3',name:'HDFC Savings ••5555',type:'bank',member:'m2',no:'5555',bank:'HDFC',bal:9000,balAsOf:'2026-11-12'},
+  {id:'q4',name:'AXIS Savings ••2444',type:'bank',member:'m1',no:'2444',bank:'AXIS',bal:700,balAsOf:'2026-11-12'}],rules:{},cur:'INR',order:''}};
+await restoreBk(fam);
+await p.click('#tabs [data-v=bal]');await p.waitForSelector('.lr');
+const main1=await p.textContent('#main');
+ok(!/ICICI BANK/.test(main1)&&((main1.match(/ICICI Savings ••0872/g)||[]).length===1),'"ICICI BANK" and "ICICI" are one bank, so the account is merged into one row');
+ok(/₹86,030/.test(main1)&&!/₹16,721/.test(main1),'the newer balance wins after the merge');
+await p.click('.mem .pill:has-text("Everyone")').catch(()=>{});
+await p.setInputFiles('#file',sampleStmt);await p.waitForSelector('#imem',{timeout:30000});
+ok((await p.$eval('#ibank',e=>e.value))==='AXIS'&&/already have this account number under AXIS/.test(await p.textContent('#modal')),'a statement whose account number you already have uses that account\'s bank, and says so');
+await p.click('[data-act=impcancel]').catch(()=>{});await p.waitForTimeout(300);if(await p.$('.sheet'))await p.click('[data-act=close]').catch(()=>{});
+await p.click('[data-act=settings]');await p.waitForSelector('.setp');
+await p.click('[data-act=memwipe]');await p.waitForSelector('#mwm');
+await p.selectOption('#mwm','m1');await p.waitForTimeout(200);
+ok(/Asha[\s\S]*4 transactions|Asha has/.test(await p.textContent('#modal')),'the dialog shows what will be removed');
+await p.click('[data-act=mwgo]');await p.waitForTimeout(600);
+const st=await p.evaluate(()=>new Promise(r=>{const q=indexedDB.open('portfolio-db',1);q.onsuccess=()=>{const g=q.result.transaction('kv').objectStore('kv').get('state');g.onsuccess=()=>r(g.result&&g.result.n)}}));
+await p.click('#tabs [data-v=tx]');await p.click('.bar .pill:has-text("All time")');await p.waitForTimeout(400);
+const txt=await p.textContent('#txrows');
+ok(/RAVI CAFE/.test(txt)&&!/ASHA PHARMACY|NEW SHOP|OLD SHOP/.test(txt),'only Asha\'s transactions were deleted, Ravi\'s remain');
+await p.click('#tabs [data-v=bal]');await p.waitForSelector('.lr');
+const main2=await p.textContent('#main');
+ok(/HDFC Savings/.test(main2)&&!/ICICI Savings|AXIS Savings/.test(main2),'only Asha\'s accounts were deleted');
+await p.click('[data-act=settings]');await p.waitForSelector('.setp');
+const famNames=()=>p.$$eval('.setp input[data-change=mname]',e=>e.map(x=>x.value));
+ok((await famNames()).includes('Asha'),'Asha stays in the family unless you choose to remove her');
+await p.click('[data-act=memwipe]');await p.waitForSelector('#mwm');await p.selectOption('#mwm','m1');await p.check('#mwr');await p.click('[data-act=mwgo]');await p.waitForTimeout(500);
+ok(!(await famNames()).includes('Asha')&&(await famNames()).includes('Ravi'),'"also remove from the family" removes the person too');
 console.log('Offline shell');
 for(const n of ['sw.js','manifest.webmanifest']){ok(fs.existsSync(path.join(ROOT,n)),n+' exists')}
 JSON.parse(fs.readFileSync(path.join(ROOT,'manifest.webmanifest')));ok(true,'manifest is valid JSON');

@@ -96,11 +96,19 @@
   const IFSC = { ICIC: 'ICICI', SBIN: 'SBI', HDFC: 'HDFC', UTIB: 'AXIS', KKBK: 'KOTAK', YESB: 'YES BANK', IDFB: 'IDFC FIRST', BARB: 'BANK OF BARODA',
     PUNB: 'PUNJAB NATIONAL', CNRB: 'CANARA', UBIN: 'UNION BANK', INDB: 'INDUSIND', FDRL: 'FEDERAL BANK', BKID: 'BANK OF INDIA', IBKL: 'IDBI',
     SCBL: 'STANDARD CHARTERED', HSBC: 'HSBC', RATN: 'RBL', AUBL: 'AU SMALL FINANCE' };
+  // One spelling per bank, so "ICICI Bank", "ICICI BANK Ltd" and "icici" are the same account holder.
+  const ALIAS = { 'ICICI BANK': 'ICICI', 'HDFC BANK': 'HDFC', 'AXIS BANK': 'AXIS', 'KOTAK MAHINDRA BANK': 'KOTAK', 'KOTAK MAHINDRA': 'KOTAK', 'KOTAK BANK': 'KOTAK', 'STATE BANK OF INDIA': 'SBI',
+    'UNION BANK OF INDIA': 'UNION BANK', 'INDUSIND BANK': 'INDUSIND', 'IDFC FIRST BANK': 'IDFC FIRST', 'IDFC BANK': 'IDFC FIRST', 'YES': 'YES BANK', 'PNB': 'PUNJAB NATIONAL', 'PUNJAB NATIONAL BANK': 'PUNJAB NATIONAL',
+    'CANARA BANK': 'CANARA', 'IDBI BANK': 'IDBI', 'RBL BANK': 'RBL', 'BOB': 'BANK OF BARODA', 'FEDERAL': 'FEDERAL BANK', 'BOI': 'BANK OF INDIA', 'STANDARD CHARTERED BANK': 'STANDARD CHARTERED', 'HSBC BANK': 'HSBC' };
+  function canonBank(b) {
+    let x = String(b || '').trim().toUpperCase().replace(/\s+/g, ' ').replace(/\s+(LTD\.?|LIMITED)$/, '');
+    return ALIAS[x] || x;
+  }
   // The issuing bank is printed at the top of the page. The middle of a page is narrations, which carry other
   // banks' names and IFSC codes (NEFT/IMPS counterparties), so only the first lines of each page count. The whole
   // text is used, weakly, only when the page tops name no bank at all.
   function detectBank(pageLines) {
-    const norm = (t) => t.replace(/state bank of india/i, 'SBI').toUpperCase();
+    const norm = (t) => canonBank(t);
     const re = new RegExp(BANKS.source, 'gi');
     const clean = (arr) => arr.map((t) => t.replace(/\S*@\S*/g, ' ')).filter((t) => !/\bUPI\//i.test(t));
     const pick = (arr, wIfsc, wName, cap) => {
@@ -114,13 +122,14 @@
     };
     const tops = pageLines.flatMap((ls, i) => clean(ls.slice(0, i === 0 ? 14 : 6)));
     // the letterhead (first lines of page 1) settles it when it names a bank, then the tops of every page
-    return pick(clean(pageLines.length ? pageLines[0].slice(0, 4) : []), 10, 4, 1e3) || pick(tops, 10, 4, 1e3) || pick(clean(pageLines.flat()), 2, 1, 6);
+    const strong = pick(clean(pageLines.length ? pageLines[0].slice(0, 4) : []), 10, 4, 1e3) || pick(tops, 10, 4, 1e3);
+    return { bank: strong || pick(clean(pageLines.flat()), 2, 1, 6), sure: !!strong };
   }
 
   function parse(pages) {
     const warnings = [];
     const all = pages.map((p, i) => ({ n: i + 1, lines: groupLines(p) }));
-    const bank = detectBank(all.slice(0, 2).map((p) => p.lines.map((l) => l.text)));
+    const det = detectBank(all.slice(0, 2).map((p) => p.lines.map((l) => l.text))), bank = det.bank;
 
     // --- account summary and fixed deposits (usually on the first page) ---
     const typeByNumber = {}, summary = [], holdings = [];
@@ -255,7 +264,7 @@
       const interest = sec ? sec.rows.filter((r) => r.amt > 0 && /int/i.test(r.desc)).reduce((x, r) => x + r.amt, 0) : 0;
       holdings.push({ kind: 'PPF', number: a.number, invested: Math.max(0, Math.round(a.balance - interest)), value: Math.round(a.balance), bank });
     }
-    return { bank, sections: out, holdings, fdListed, warnings };
+    return { bank, bankSure: det.sure, sections: out, holdings, fdListed, warnings };
   }
 
   /** Drop machine reference numbers from narrations so they read like a merchant, and dedupe stays stable. */
@@ -280,6 +289,6 @@
   }
   const last4 = (n) => (n ? String(n).slice(-4) : '');
 
-  const api = { parse, parseDate, groupLines, readHeader, tidy };
+  const api = { parse, parseDate, groupLines, readHeader, tidy, canonBank };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PFStmt = api;
 })(typeof window !== 'undefined' ? window : globalThis);
