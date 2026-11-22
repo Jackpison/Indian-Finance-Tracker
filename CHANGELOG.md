@@ -14,6 +14,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - More tests (`tests/features.js`).
 
 ### Fixed
+- Importing several years of statements: the bank name is now read the same way every time (ICICI vs icici), so one account no longer splits into two with its balance counted twice, and deposits from an older statement no longer reappear as running. On load the app merges such duplicate accounts, keeps a transaction that sits in both copies once, and drops closed deposits that only an older statement listed. A copy of your data from before this tidy-up is kept on the device (`state.prerepair`) when the data is not passcode-encrypted.
+- Accounts can be marked closed (Balance, Edit) so an old account no longer counts towards net worth.
 - Editing a card limit no longer re-renders the page while the field is focused.
 
 ## [0.3.0] - 2026-11-22

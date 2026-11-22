@@ -95,7 +95,7 @@
     const warnings = [];
     const all = pages.map((p, i) => ({ n: i + 1, lines: groupLines(p) }));
     const firstText = all.slice(0, 2).flatMap((p) => p.lines.map((l) => l.text)).join('\n');
-    const bank = (firstText.match(BANKS) || [''])[0].replace(/^SBI$/i, 'SBI').replace(/state bank of india/i, 'SBI');
+    const bank = (firstText.match(BANKS) || [''])[0].replace(/^SBI$/i, 'SBI').replace(/state bank of india/i, 'SBI').toUpperCase();
 
     // --- account summary and fixed deposits (usually on the first page) ---
     const typeByNumber = {}, summary = [], holdings = [];

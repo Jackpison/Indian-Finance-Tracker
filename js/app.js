@@ -77,7 +77,23 @@ const DATA_KEYS=['tx','hold','uploads','vault','members','accts','rules','cur','
 function snapshot(){const o={};DATA_KEYS.forEach(k=>o[k]=S[k]);return JSON.stringify(o)}
 function applyState(j){if(!j)return;
   Object.assign(S,{tx:[],hold:[],uploads:[],vault:[],members:[],accts:[],rules:{}},Object.fromEntries(DATA_KEYS.filter(k=>j[k]!==undefined).map(k=>[k,j[k]])));
-  if(!S.members.length)S.members=[{id:'me',name:'Me',color:MCOL[0]}];S.cur=S.cur||'INR';for(const t of S.tx)if(!t.cat)t.cat=categorize(t.desc,t.amt)}
+  if(!S.members.length)S.members=[{id:'me',name:'Me',color:MCOL[0]}];S.cur=S.cur||'INR';for(const t of S.tx)if(!t.cat)t.cat=categorize(t.desc,t.amt);repairData()}
+/* Tidy-up that runs whenever data is loaded: merges one account that got split by letter case, drops
+   deposits that an older statement listed but a newer one no longer does. Reports what it changed. */
+function repairData(){const r={acct:0,tx:0,fd:0};
+  for(const a of S.accts)if(a.bank&&a.bank!==a.bank.toUpperCase()){a.bank=a.bank.toUpperCase();if(a.name.toLowerCase().startsWith(a.bank.toLowerCase()))a.name=a.bank+a.name.slice(a.bank.length)}
+  const seen=new Map();
+  for(const a of [...S.accts]){if(!a.no||!a.bank)continue;const k=[a.bank,a.no,a.member,a.type].join('|'),f=seen.get(k);if(!f){seen.set(k,a);continue}
+    const cnt=m=>{const o=new Map();for(const t of S.tx)if(t.acct===m.id){const q=t.d+'|'+t.amt+'|'+t.desc.toLowerCase();o.set(q,(o.get(q)||0)+1)}return o},cf=cnt(f);
+    for(const t of S.tx.filter(x=>x.acct===a.id)){const q=t.d+'|'+t.amt+'|'+t.desc.toLowerCase(),n=cf.get(q)||0;
+      if(n>0){cf.set(q,n-1);if(t.xf)unlinkXf(t);t._del=1;r.tx++}else t.acct=f.id}
+    S.tx=S.tx.filter(t=>!t._del);
+    if((a.balAsOf||'')>(f.balAsOf||'')){f.bal=a.bal;f.balAsOf=a.balAsOf}if(a.sub&&!f.sub)f.sub=a.sub;if(a.limit&&!f.limit)f.limit=a.limit;
+    for(const u of S.uploads){if(u.acct===a.id)u.acct=f.id;if(u.accts)u.accts=[...new Set(u.accts.map(x=>x===a.id?f.id:x))]}
+    S.accts=S.accts.filter(x=>x!==a);r.acct++}
+  const grp=new Map();for(const h of S.hold)if(isStmHold(h)&&h.type==='FD / RD'&&h.asof){const k=h.m+'|'+(h.bank||'').toLowerCase(),g=grp.get(k);if(!g||h.asof>g)grp.set(k,h.asof)}
+  const before=S.hold.length;S.hold=S.hold.filter(h=>!(isStmHold(h)&&h.type==='FD / RD'&&h.asof&&h.asof<grp.get(h.m+'|'+(h.bank||'').toLowerCase())));r.fd=before-S.hold.length;
+  if(r.acct||r.tx||r.fd){matchTransfers();S._rep=r}return r}
 async function saveMeta(){await kvSet('meta',{lock:lockMeta,autoLock:autoLockMin,bk})}
 function save(){S._rv=(S._rv||0)+1;if(!booted||frozen)return;clearTimeout(saveT);saveT=setTimeout(flush,250)}
 /* Saving is defensive: never overwrite newer data written by another tab, keep rolling automatic copies, and say so when a write fails. */
@@ -105,8 +121,10 @@ async function boot(){
   if(lockMeta){pendingRec=alt&&!rec?alt:rec;stateTs=(rec&&rec.ts)||0;showLock();return}
   stateTs=(rec&&rec.ts)||0;
   if(rec&&!rec.enc){try{applyState(JSON.parse(rec.json))}catch(e){console.error(e);frozen=true;booted=true;render();modal(`<h2>Saved data could not be read</h2><p class="sub">Your saved data is still on this device and was left untouched. Reload to try again, or restore a backup file.</p><div class="acts"><button class="btn primary" data-act="reload">Reload</button></div>`);return}}
-  booted=true;render();
+  booted=true;render();reportRepair(rec);
   if(alt&&!alt.enc){recoverDialog(alt)}}
+function reportRepair(rec){const r=S._rep;if(!r)return;delete S._rep;try{if(!lockMeta&&rec&&!rec.enc)kvSet('state.prerepair',rec)}catch(e){}save();
+  const bits=[r.acct?`merged ${r.acct} duplicate account${r.acct>1?'s':''}`:'',r.tx?`removed ${r.tx} repeated transaction${r.tx>1?'s':''}`:'',r.fd?`dropped ${r.fd} closed deposit${r.fd>1?'s':''}`:''].filter(Boolean);toast('Tidied your data: '+bits.join(', '))}
 function recoverDialog(alt){const n=recN(alt),when=alt.ts?new Date(alt.ts).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'earlier';
   modal(`<h2>Recover your data?</h2><p class="sub">The main copy is empty, but an automatic copy from <b>${esc(when)}</b> with <b>${n.toLocaleString('en-IN')} transactions</b> was found on this device.</p><div class="acts"><button class="btn" data-act="close">Start empty</button><button class="btn primary" id="rcv">Restore it</button></div>`);
   $('#rcv').onclick=()=>{try{applyState(JSON.parse(alt.json));save();closeModal();render();toast('Data restored from the automatic copy')}catch(e){toast('That copy could not be read')}}}
@@ -488,7 +506,7 @@ function overview(){
   const nw=netWorth(),chipv=(cur_,prev_,inv)=>hasPrev?dChip(cur_,prev_,inv)+' <span>vs previous period</span>':`<span>${rg.label}</span>`;
   const stat=(l,v,sub,cls='')=>`<div class="card stat s3"><div class="sl">${l}</div><div class="sv num ${cls}">${v}</div><div class="ss">${sub}</div></div>`;
   const mems=S.members.map(m=>[m.name,sums(cur.filter(t=>t.m===m.id)).sp,m.color]).filter(x=>x[1]>0);const mt=mems.reduce((a,x)=>a+x[1],0);
-  const multi=S.member==='all'&&mems.length>1,accRows=nw.accs.filter(a=>a.sub!=='PPF').map(a=>[a,curBal(a)]).filter(x=>x[1]!=null).sort((x,y)=>y[1]-x[1]).slice(0,5);
+  const multi=S.member==='all'&&mems.length>1,accRows=nw.accs.filter(a=>a.sub!=='PPF'&&!a.closed).map(a=>[a,curBal(a)]).filter(x=>x[1]!=null).sort((x,y)=>y[1]-x[1]).slice(0,5);
   const nOther=S.tx.filter(t=>t.cat==='Other'&&inMember(t)).length;const h=onboard()+(nOther?`<div class="card reviewq"><div><b>${nOther.toLocaleString('en-IN')} transaction${nOther>1?'s':''} without a category</b><span>Sorting them makes spending charts accurate. The app remembers your choice for similar payments.</span></div><button class="btn sm primary" data-act="cat" data-v="Other">Review</button></div>`:'')+`<div class="grid">
     ${(()=>{const mm={};for(const t of base())mm[t.d.slice(0,7)]=(mm[t.d.slice(0,7)]||0)+t.amt;let run=0;const ser=Object.keys(mm).sort().map(k=>run+=mm[k]).slice(-12);const [wi,wd]=money(nw.total,2).split('.');
       const line=ser.length>1?(()=>{const mx=Math.max(...ser),mn=Math.min(...ser),sp=mx-mn||1,pts=ser.map((v,i)=>[i/(ser.length-1)*300,56-(v-mn)/sp*48]);const d='M'+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join('L');return`<svg class="hspark" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="hsg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7BA7FF" stop-opacity=".35"/><stop offset="1" stop-color="#7BA7FF" stop-opacity="0"/></linearGradient></defs><path d="${d}L300,60L0,60Z" fill="url(#hsg)"/><path d="${d}" fill="none" stroke="#7BA7FF" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`})():'';
@@ -789,7 +807,7 @@ function doImport(){const i=S.imp;
 
 /* ---------- bank statements read by column position (see js/statement.js) ---------- */
 const sLabel=(st,s)=>`${st.bank||'Bank'} ${s.type} ••${String(s.number||'').slice(-4)||'----'}`.replace(' ••----','');
-const findAcct=(no,bank)=>no&&S.accts.find(a=>a.no===String(no).slice(-4)&&(!a.bank||!bank||a.bank===bank));
+const findAcct=(no,bank)=>no&&S.accts.find(a=>a.no===String(no).slice(-4)&&(!a.bank||!bank||a.bank.toLowerCase()===bank.toLowerCase()));
 function stmtCat(sec,t){if(sec.type==='PPF')return t.amt>0&&/int/i.test(t.desc)?'Income':'Transfers';return categorize(t.desc,t.amt)}
 function stmtHolds(st){return st.holdings.map(h=>{const l4=String(h.number).slice(-4),b=st.bank||'Bank';
   if(h.kind==='FD')return{name:`${b} FD ••${l4}`,type:'FD / RD',invested:Math.round(h.invested),value:Math.round(h.value),maturity:h.maturity||undefined,rate:h.rate};
@@ -814,7 +832,7 @@ function stmtDialog(){const i=S.imp,st=i.stmt;i.pick=i.pick||st.sections.map(()=
 /* ---- statement holdings: a newer statement replaces older FD/PPF lists ---- */
 const isStmHold=h=>h.stm||/ (FD|PPF) ••\d{4}$/.test(h.name);
 function reconcileHolds(st,mem,asof){const bank=st.bank||'Bank',nh=stmtHolds(st),res={n:0,removed:0,kept:0};
-  const mine=S.hold.filter(h=>h.m===mem&&isStmHold(h)&&h.name.startsWith(bank+' '));
+  const mine=S.hold.filter(h=>h.m===mem&&isStmHold(h)&&h.name.toLowerCase().startsWith(bank.toLowerCase()+' '));
   if(mine.some(h=>h.asof&&h.asof>asof)){res.kept=1;return res}
   const keep=new Set(nh.map(h=>h.name.toLowerCase()));
   if(st.fdListed||nh.some(h=>h.type==='FD / RD')){const gone=mine.filter(h=>h.type==='FD / RD'&&!keep.has(h.name.toLowerCase()));if(gone.length){const ids=new Set(gone.map(h=>h.id));S.hold=S.hold.filter(h=>!ids.has(h.id));res.removed=gone.length}}
@@ -823,7 +841,7 @@ function reconcileHolds(st,mem,asof){const bank=st.bank||'Bank',nh=stmtHolds(st)
 /* ---- balances ---- */
 function curBal(a){if(a.bal==null)return null;let b=a.bal;if(a.balAsOf)for(const t of S.tx)if(t.acct===a.id&&t.d>a.balAsOf)b+=t.amt;return b}
 function netWorth(){const accs=S.accts.filter(a=>S.member==='all'||a.member===S.member);let cash=0,due=0,known=0,unknown=0;
-  for(const a of accs){if(a.sub==='PPF')continue;const b=curBal(a);if(b==null){unknown++;continue}known++;if(a.type==='card')due+=Math.min(0,b);else cash+=b}
+  for(const a of accs){if(a.sub==='PPF'||a.closed)continue;const b=curBal(a);if(b==null){unknown++;continue}known++;if(a.type==='card')due+=Math.min(0,b);else cash+=b}
   const hs=S.hold.filter(inMember),inv=hs.reduce((x,h)=>x+h.value,0);return{cash,due,inv,total:cash+due+inv,known,unknown,accs}}
 
 function pageHead(){const h=HEAD[S.view];return h?`<div class="ph"><h1>${h[0]}</h1><span>${h[1]}</span></div>`:''}
@@ -834,7 +852,7 @@ function balView(){const nw=netWorth();
     today=iso(new Date()),stale=a=>a.balAsOf&&daysBetween(a.balAsOf,today)>45;
   const stat=(l,v,sub,cls='')=>`<div class="card stat"><div class="sl">${l}</div><div class="sv num ${cls}">${v}</div><div class="ss">${sub}</div></div>`;
   const fdTot=fds.reduce((x,h)=>x+h.value,0);
-  const row=a=>{const b=curBal(a),own=memOf(a.member);return`<div class="lr"><div class="lm"><div class="ln">${esc(a.name)} <span class="tg">${a.type==='card'?'Card':'Bank'}</span>${stale(a)?'<span class="tg warn">Statement is old</span>':''}</div><div class="lsub">${a.bank?esc(a.bank)+' · ':''}${a.no?'••'+esc(a.no)+' · ':''}${esc(own.name)}${a.balAsOf?` · as of ${fd(a.balAsOf)}`:''}</div></div><div class="lv">${b==null?'<span class="tg">No balance yet</span>':`<span class="num ${b<0?'out':''}">${money(b)}</span>`}<button class="btn sm" data-act="setbal" data-id="${a.id}">${b==null?'Set balance':'Edit'}</button></div></div>`};
+  const row=a=>{const b=curBal(a),own=memOf(a.member);return`<div class="lr"><div class="lm"><div class="ln">${esc(a.name)} <span class="tg">${a.type==='card'?'Card':'Bank'}</span>${a.closed?'<span class="tg">Closed</span>':stale(a)?'<span class="tg warn">Statement is old</span>':''}</div><div class="lsub">${a.bank?esc(a.bank)+' · ':''}${a.no?'••'+esc(a.no)+' · ':''}${esc(own.name)}${a.balAsOf?` · as of ${fd(a.balAsOf)}`:''}</div></div><div class="lv">${b==null?'<span class="tg">No balance yet</span>':`<span class="num ${b<0?'out':''}">${money(b)}</span>`}<button class="btn sm" data-act="setbal" data-id="${a.id}">${b==null?'Set balance':'Edit'}</button></div></div>`};
   return`<div class="grid">
    <div class="s3">${stat('Net worth',money(nw.total),`${nw.known} account${nw.known===1?'':'s'} with a balance`)}</div>
    <div class="s3">${stat('Bank balance',money(nw.cash),nw.unknown?`${nw.unknown} account${nw.unknown>1?'s':''} without a balance`:'across your accounts')}</div>
@@ -846,14 +864,14 @@ function balView(){const nw=netWorth();
     ${fds.map(h=>{const dl=h.maturity?daysBetween(today,h.maturity):null;return`<div class="lr"><div class="lm"><div class="ln">${esc(h.name)} ${h.rate?`<span class="tg ok">${h.rate}%</span>`:''}</div><div class="lsub">${h.maturity?`Matures ${fd(h.maturity)}${dl!=null?(dl<0?' · past maturity':` · in ${dl} days`):''}`:'No maturity date'}</div></div><div class="lv"><span class="num">${money(h.value)}</span></div></div>`}).join('')}</div>
   </div>`}
 function balMatrix(){const ms=S.members,all=a=>a;
-  const bankOf=m=>S.accts.filter(a=>a.member===m&&a.type!=='card'&&a.sub!=='PPF').reduce((x,a)=>x+(curBal(a)||0),0),dueOf=m=>S.accts.filter(a=>a.member===m&&a.type==='card').reduce((x,a)=>x+Math.min(0,curBal(a)||0),0),
+  const bankOf=m=>S.accts.filter(a=>a.member===m&&a.type!=='card'&&a.sub!=='PPF'&&!a.closed).reduce((x,a)=>x+(curBal(a)||0),0),dueOf=m=>S.accts.filter(a=>a.member===m&&a.type==='card'&&!a.closed).reduce((x,a)=>x+Math.min(0,curBal(a)||0),0),
     hOf=(m,t)=>S.hold.filter(h=>h.m===m&&h.type===t).reduce((x,h)=>x+h.value,0);
   const rows=[['Bank balance',m=>bankOf(m.id)]];for(const [t] of HT)if(S.hold.some(h=>h.type===t))rows.push([t==='FD / RD'?'Fixed deposits':t,m=>hOf(m.id,t)]);
   if(S.accts.some(a=>a.type==='card'&&a.bal!=null))rows.push(['Card dues',m=>dueOf(m.id)]);
   const tot=m=>rows.reduce((x,r)=>x+r[1](m),0),cols=ms.length>1;
   const cell=v=>`<td class="num ${v<0?'out':''}">${v?money(v):'<span class="faint">—</span>'}</td>`;
   return`<div class="ch"><div><h3>Total and by person</h3><div class="cs">Bank balances are the latest known; investments use their latest value.</div></div></div><div class="tbl"><table><thead><tr><th></th>${cols?ms.map(m=>`<th><span class="dot" style="--c:${m.color}"></span> ${esc(m.name)}</th>`).join(''):''}<th>Total</th></tr></thead><tbody>${rows.map(([l,f])=>`<tr><td>${esc(l)}</td>${cols?ms.map(m=>cell(f(m))).join(''):''}${cell(ms.reduce((x,m)=>x+f(m),0))}</tr>`).join('')}<tr class="tot"><td>Net worth</td>${cols?ms.map(m=>cell(tot(m))).join(''):''}${cell(ms.reduce((x,m)=>x+tot(m),0))}</tr></tbody></table></div>`}
-function balDialog(a){const b=curBal(a);modal(`<h2>${esc(a.name)}</h2><p class="sub">${a.type==='card'?'Enter what you owe on this card right now.':'Enter the balance in this account right now.'} Later imports update it automatically.</p><div class="frm"><div class="fld"><label for="sbv">${a.type==='card'?'Amount owed':'Balance'}</label><input id="sbv" inputmode="decimal" value="${b==null?'':Math.abs(b)}"></div><div class="fld"><label for="sbd">As of</label><input id="sbd" type="date" value="${iso(new Date())}"></div></div><div class="acts"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="sbsave" data-id="${a.id}">Save</button></div>`)}
+function balDialog(a){const b=curBal(a);modal(`<h2>${esc(a.name)}</h2><p class="sub">${a.type==='card'?'Enter what you owe on this card right now.':'Enter the balance in this account right now.'} Later imports update it automatically.</p><div class="frm"><div class="fld"><label for="sbv">${a.type==='card'?'Amount owed':'Balance'}</label><input id="sbv" inputmode="decimal" value="${b==null?'':Math.abs(b)}"></div><div class="fld"><label for="sbd">As of</label><input id="sbd" type="date" value="${iso(new Date())}"></div><div class="fld full"><label class="chk"><input type="checkbox" id="sbc" ${a.closed?'checked':''}> This account is closed. Keep its history but leave it out of net worth.</label></div></div><div class="acts"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="sbsave" data-id="${a.id}">Save</button></div>`)}
 function doStmt(){const i=S.imp,st=i.stmt,mem=$('#imem').value;const src=uid(),ids=[];let added=0,dup=0,total=0,from='9999',to='0000';
   st.sections.forEach((s,n)=>{if(!i.pick[n])return;let a=findAcct(s.number,st.bank);
     if(!a){a={id:uid(),name:sLabel(st,s),type:'bank',member:mem,no:String(s.number||'').slice(-4)||undefined,bank:st.bank||undefined};S.accts.push(a)}ids.push(a.id);if(s.type==='PPF')a.sub='PPF';
@@ -942,7 +960,7 @@ function settings(){closeModal();S.view='settings';render();window.scrollTo(0,0)
 /* ---------- events ---------- */
 const A={
  setbal(e){balDialog(S.accts.find(a=>a.id===e.dataset.id))},
- sbsave(e){const a=S.accts.find(x=>x.id===e.dataset.id),v=parseFloat(String($('#sbv').value).replace(/,/g,''));if(!isFinite(v))return toast('Enter an amount');a.bal=a.type==='card'?-Math.abs(v):v;a.balAsOf=$('#sbd').value||iso(new Date());save();closeModal();render();toast('Balance saved')},
+ sbsave(e){const a=S.accts.find(x=>x.id===e.dataset.id),v=parseFloat(String($('#sbv').value).replace(/,/g,''));if(!isFinite(v))return toast('Enter an amount');a.bal=a.type==='card'?-Math.abs(v):v;a.balAsOf=$('#sbd').value||iso(new Date());a.closed=$('#sbc').checked||undefined;save();closeModal();render();toast('Balance saved')},
  bksnooze(){bk.snooze=Date.now()+7*864e5;saveMeta();render()},
  xfind(){const n=matchTransfers();save();render();toast(n?`Matched ${n} transfer${n>1?'s':''}`:'No new transfers found');settings()},
  xfundo(){for(const t of S.tx.filter(t=>t.xf))unlinkXf(t);for(const t of S.tx)if(t.xn)delete t.xn;save();render();toast('Transfer links removed');settings()},

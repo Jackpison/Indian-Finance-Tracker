@@ -21,6 +21,17 @@ await p.click('.txr .tx');await p.click('.txr.open [data-act=txsplit]');await p.
 await p.fill('#spa','1');await p.click('[data-act=spgo]');await p.waitForTimeout(500);
 await p.click('[data-act=fclear]');await p.fill('#q','QQXZ');await p.waitForTimeout(400);
 ok((await p.$$('.txr')).length===2,'splitting leaves two rows for the payment');
+console.log('Repair after importing old statements');
+const bad={format:'ift-backup-1',enc:false,data:{tx:[{id:'t1',d:'2026-01-05',desc:'COFFEE SHOP',amt:-100,acct:'a1',m:'m1'},{id:'t2',d:'2026-01-05',desc:'COFFEE SHOP',amt:-100,acct:'a2',m:'m1'},{id:'t3',d:'2023-02-01',desc:'OLD ONE',amt:-50,acct:'a2',m:'m1'}],
+ hold:[{id:'h1',name:'icici FD ••8487',type:'FD / RD',m:'m1',invested:100000,value:101317,maturity:'2023-06-24',stm:true,bank:'icici',asof:'2023-03-30'},{id:'h2',name:'ICICI FD ••3892',type:'FD / RD',m:'m1',invested:200000,value:200000,maturity:'2027-01-05',stm:true,bank:'ICICI',asof:'2026-11-19'}],
+ uploads:[],vault:[],members:[{id:'m1',name:'Sagar',color:'#3B5BFF'}],accts:[{id:'a1',name:'ICICI Savings ••5535',type:'bank',member:'m1',bank:'ICICI',no:'5535',bal:109022,balAsOf:'2026-11-19'},{id:'a2',name:'icici Savings ••5535',type:'bank',member:'m1',bank:'icici',no:'5535',bal:97326,balAsOf:'2023-03-30'}],rules:{},cur:'INR',order:''}};
+await p.click('[data-act=settings]');await p.waitForSelector('.setp');await p.click('[data-act=bkshow]');await p.fill('#bktxt',JSON.stringify(bad));await p.click('[data-act=bkgo]');await p.waitForTimeout(1000);
+await p.click('#tabs [data-v=bal]');await p.waitForSelector('.lr');
+const names=await p.$$eval('.lr .ln',e=>e.map(x=>x.textContent));
+ok(names.filter(n=>/Savings/.test(n)).length===1,'duplicate account merged ('+names.join(' | ')+')');
+ok(!names.some(n=>/8487/.test(n))&&names.some(n=>/3892/.test(n)),'deposit from the older statement removed, current one kept');
+await p.click('#tabs [data-v=tx]');await p.fill('#q','COFFEE');await p.waitForTimeout(400);
+ok((await p.$$('.txr')).length===1,'transaction present in both copies is kept once');
 console.log('Offline shell');
 for(const n of ['sw.js','manifest.webmanifest']){ok(fs.existsSync(path.join(ROOT,n)),n+' exists')}
 JSON.parse(fs.readFileSync(path.join(ROOT,'manifest.webmanifest')));ok(true,'manifest is valid JSON');
