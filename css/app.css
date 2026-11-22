@@ -477,3 +477,21 @@ select:hover,.csel:hover{border-color:color-mix(in srgb,var(--fg) 25%,var(--line
 .txsum .sl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:600}
 .txsum .sv{font-size:24px;font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
 @media(max-width:700px){.txsum{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ---- signature: net-worth hero + cursor spotlight ---- */
+.nwhero{position:relative;overflow:hidden;color:#EEF1F3;background:radial-gradient(120% 140% at 0% 0%,#1b2a4a 0%,#0d1012 55%);border-color:#1d2328;padding:22px 26px 0;display:flex;flex-direction:column}
+.nwhero .sl{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8EA0B8}
+.nwhero .sv{font-size:44px;font-weight:650;letter-spacing:-.03em;margin:10px 0 4px;line-height:1.1}
+.nwhero .sv .dim{color:#6B7C94;font-weight:500}
+.nwhero .ss{color:#A8B3C2;font-size:13.5px}
+.nwhero .nwf{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px;color:#A8B3C2;font-size:13px}
+.nwhero .chip.good{background:rgba(47,210,122,.16);color:#47E08F}.nwhero .chip.bad{background:rgba(255,99,99,.16);color:#FF8A8A}
+.hspark{display:block;width:calc(100% + 52px);margin:14px -26px 0;height:64px}
+.card{position:relative}
+.card::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;background:radial-gradient(260px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,var(--accent) 10%,transparent),transparent 70%)}
+.card:hover::before{opacity:1}
+@media(hover:none),(prefers-reduced-motion:reduce){.card::before{display:none}}
+.hatch{flex-basis:100%;height:34px;border-radius:8px;margin-top:10px;position:relative;overflow:hidden;background:color-mix(in srgb,var(--c) 8%,transparent)}
+.hatch::after{content:'';position:absolute;inset:0;width:var(--w,100%);border-radius:8px;background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--c) 55%,transparent) 0 2px,transparent 2px 5px);border-right:2px solid var(--c);animation:hw .9s cubic-bezier(.2,.8,.2,1) both}
+.hatch.in{--c:var(--in)}.hatch.out{--c:var(--out)}
+@keyframes hw{from{width:0}}
