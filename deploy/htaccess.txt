@@ -10,7 +10,7 @@ Options -Indexes
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
   # Everything runs in your browser; nothing is sent anywhere.
   Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
-  <FilesMatch "\.(html|json)$">
+  <FilesMatch "\.(html|json|js|css|webmanifest)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
 </IfModule>

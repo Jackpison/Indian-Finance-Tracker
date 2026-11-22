@@ -45,6 +45,10 @@ const robots=fs.readFileSync(path.join(ROOT,'robots.txt'),'utf8');
 ok(/User-agent: \*\s+Disallow: \//.test(robots)&&/GPTBot/.test(robots)&&/ClaudeBot/.test(robots),'robots.txt bans all crawlers, AI ones by name');
 for(const f of ['deploy/htaccess.txt','deploy/nginx.conf','deploy/Caddyfile'])ok(/gptbot/i.test(fs.readFileSync(path.join(ROOT,f),'utf8')),f+' refuses known bots');
 ok(/'robots\.txt'/.test(fs.readFileSync(path.join(ROOT,'deploy/update.php'),'utf8')),'update.php may install robots.txt');
+console.log('Cache busting');
+{const html=fs.readFileSync(path.join(ROOT,'index.html'),'utf8'),ver=JSON.parse(fs.readFileSync(path.join(ROOT,'version.json'))).version;
+ for(const f of ['css/app.css','js/theme.js','js/statement.js','js/app.js'])ok(html.includes(f+'?v='+ver+'"'),f+' is loaded with ?v='+ver);
+ ok(/FilesMatch "\\.\(html\|json\|js\|css\|webmanifest\)\$"/.test(fs.readFileSync(path.join(ROOT,'deploy/htaccess.txt'),'utf8')),'.htaccess revalidates JS and CSS on each load')}
 console.log('Offline shell');
 for(const n of ['sw.js','manifest.webmanifest']){ok(fs.existsSync(path.join(ROOT,n)),n+' exists')}
 JSON.parse(fs.readFileSync(path.join(ROOT,'manifest.webmanifest')));ok(true,'manifest is valid JSON');
