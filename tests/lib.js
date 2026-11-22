@@ -9,7 +9,7 @@ exports.launch=async(opts={})=>{
   const page=await ctx.newPage();const errors=[];
   page.on('pageerror',e=>errors.push('PAGE '+e.message));
   page.on('console',m=>{if(['error','warning'].includes(m.type()))errors.push(m.text())});
-  page.on('request',r=>{const u=r.url();if(!u.startsWith('file:')&&!u.startsWith('data:')&&!u.startsWith('blob:'))errors.push('EXTERNAL REQUEST '+u)});
+  page.on('request',r=>{const u=r.url();if(!/^(file|data|blob):/.test(u)&&!/^http:\/\/127\.0\.0\.1[:\/]/.test(u))errors.push('EXTERNAL REQUEST '+u)});
   return{browser,ctx,page,errors};
 };
 let fails=0;

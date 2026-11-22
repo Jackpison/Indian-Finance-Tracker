@@ -1,5 +1,6 @@
 (()=>{
 'use strict';
+const VERSION='1.0.0'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -854,6 +855,7 @@ function guideDlg(){modal(`<h2>Install &amp; hosting guide</h2><p class="sub">Po
 <li>In cPanel open <b>SSL/TLS Status</b> and run AutoSSL for the domain. The passcode lock needs HTTPS.</li>
 <li>Visit <code>yourdomain.com/finance/</code>.</li>
 <li>Optional: use <b>Directory Privacy</b> to add a username and password to the folder.</li></ol>
+<div class="sec"><h2>Updating</h2></div><p class="muted" style="margin:0">Download the new ZIP from the GitHub Releases page and extract it over the old files, or set up automatic FTPS deploys or the one-click <code>update.php</code> (see the README, Releases and updates). Your data is never touched. Settings, Check for updates tells you when the site has a new version.</p>
 <div class="sec"><h2>Cloudflare Access (optional)</h2></div>
 <p class="muted" style="margin:0">Put the site behind Zero Trust: <b>Zero Trust, Access, Applications, Add, Self-hosted</b>, enter the domain and path, then add a policy that allows only your email addresses. You can skip this and use a passcode instead. They work well together.</p>
 <div class="sec"><h2>Other options</h2></div>
@@ -868,6 +870,7 @@ function settings(){modal(`<h2>Settings</h2><p class="sub">Family, accounts, cur
   <div class="sec"><h2>Security</h2></div>
   <div class="note">${lockMeta?'<b class="in">Passcode protection is on.</b> Your data is encrypted on this device with AES-256-GCM. The key comes from your passcode through PBKDF2 with SHA-256 (600,000 rounds). The passcode is never stored.':'<b>Passcode protection is off.</b> Your data is stored unencrypted in this browser. Turn it on to encrypt everything and unlock the Vault.'}</div>
   <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">${lockMeta?`<button class="btn sm" data-act="chglock">Change passcode</button><button class="btn sm" data-act="locknow">Lock now</button><button class="btn sm danger" data-act="offlock">Turn off</button><span class="muted" style="font-size:13px">Auto-lock after</span>${sel('alk',[['1','1 min'],['5','5 min'],['15','15 min'],['30','30 min'],['0','Never']],String(autoLockMin),'data-change="autolock"')}`:`<button class="btn sm primary" data-act="setlock">Set a passcode</button>`}</div>
+  <div class="sec"><h2>Version</h2></div><div class="note">Portfolio <b>v${VERSION}</b>. On a hosted site, new releases are installed by your host (see the hosting guide); this button only checks whether the site has been updated since this page was loaded.</div><div style="margin-top:10px"><button class="btn sm" data-act="chkupd">Check for updates</button></div>
   <div class="sec"><h2>Hosting</h2></div><div class="note">Installing on your own website, or locking it down with Cloudflare Access.</div><div style="margin-top:10px"><button class="btn sm" data-act="guide">Install &amp; hosting guide</button></div>
   <div class="sec"><h2>Backup</h2></div><div class="note">Copy a backup to keep your data safe or move it to another device, then paste it back to restore.</div>
   <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn sm" data-act="bkdl">Download backup</button><button class="btn sm" data-act="bkcopy">Copy backup</button><button class="btn sm" data-act="bkshow">Restore from backup…</button><button class="btn sm danger" id="clr" data-act="clear">Delete all my data</button></div><div id="bkarea"></div>
@@ -875,7 +878,7 @@ function settings(){modal(`<h2>Settings</h2><p class="sub">Family, accounts, cur
 
 /* ---------- events ---------- */
 const A={
- guide(){guideDlg()},
+ guide(){guideDlg()},chkupd(){checkUpdate(true)},reload(){location.reload()},updx(){$("#upd")?.remove()},
  anasub(e){S.ana=e.dataset.v;render()},streammode(e){S.stream=e.dataset.v;render()},calyear(e){S.calYear=e.dataset.v;render()},hmetric(e){S.hm=e.dataset.v;render()},yoytog(e){const f=e.dataset.v;(S._yoy||(S._yoy={}))[f]=!S._yoy[f];render()},
  view(e){S.view=e.dataset.v;if(S.view!=='tx'){}render();window.scrollTo(0,0)},
  member(e){S.member=e.dataset.v;render()},range(e){S.range=e.dataset.v;render()},
@@ -980,5 +983,12 @@ function setTheme(mode,btn){if(mode===themeMode)return;const go=()=>{themeMode=m
   if(document.startViewTransition&&!matchMedia('(prefers-reduced-motion:reduce)').matches){const b=btn.getBoundingClientRect(),st=document.documentElement.style;st.setProperty('--tx',(b.left+b.width/2)+'px');st.setProperty('--ty',(b.top+b.height/2)+'px');document.startViewTransition(go)}else go()}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-theme-set]');if(b)setTheme(b.dataset.themeSet,b)});
 paintTheme();
+/* Same-origin update check: version.json is replaced when a new release is deployed. No third-party requests. */
+async function checkUpdate(manual){
+  try{const r=await fetch('version.json?'+Date.now(),{cache:'no-store'});if(!r.ok)throw 0;const v=String((await r.json()).version||'');
+    if(v&&v!==VERSION){showUpdate(v);if(manual)toast('Version '+v+' is ready')}else if(manual)toast('You are on the latest version (v'+VERSION+')')}
+  catch(e){if(manual)toast('Could not check. Updates apply to sites served over http(s).')}}
+function showUpdate(v){if($('#upd'))return;const d=document.createElement('div');d.id='upd';d.setAttribute('role','status');d.innerHTML=`<span>Portfolio <b>v${esc(v)}</b> is available.</span><button class="btn sm primary" data-act="reload">Reload</button><button class="btn sm" data-act="updx" aria-label="Dismiss">Later</button>`;document.body.appendChild(d)}
+if(location.protocol.startsWith('http'))setTimeout(()=>checkUpdate(false),4000);
 boot();
 })();

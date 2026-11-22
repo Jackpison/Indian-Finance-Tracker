@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# Builds portfolio.zip — upload it in cPanel File Manager and Extract.
-set -e
+# Builds a release ZIP for cPanel / any static host (includes .htaccess).
+# Usage: deploy/make-zip.sh [output.zip]     default: portfolio-v<version>.zip
+set -euo pipefail
 cd "$(dirname "$0")/.."
-rm -f portfolio.zip
-cp deploy/htaccess.txt /tmp/.htaccess.portfolio
-zip -qr portfolio.zip index.html css js assets vendor
-( cd /tmp && mv .htaccess.portfolio .htaccess && zip -q "$OLDPWD/portfolio.zip" .htaccess && rm .htaccess )
-echo "Created portfolio.zip ($(du -h portfolio.zip | cut -f1))"
+VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' version.json)
+OUT="${1:-portfolio-v${VERSION}.zip}"
+case "$OUT" in /*) ABS="$OUT";; *) ABS="$PWD/$OUT";; esac
+STAGE=$(mktemp -d)
+trap 'rm -rf "$STAGE"' EXIT
+cp -r index.html version.json css js assets vendor "$STAGE/"
+cp deploy/htaccess.txt "$STAGE/.htaccess"
+( cd "$STAGE" && zip -qr "$ABS" . )
+sha256sum "$OUT" | tee "$OUT.sha256"
+echo "Created $OUT ($(du -h "$OUT" | cut -f1))"

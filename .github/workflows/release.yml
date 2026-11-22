@@ -1,0 +1,87 @@
+name: Release
+
+# Publish a release by pushing a version tag:
+#   deploy/bump.sh 1.1.0   # sets the version, then edit CHANGELOG.md and commit
+#   git tag v1.1.0 && git push origin main --tags
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)deploy, e.g. v1.0.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Check version consistency
+        id: ver
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          V=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' version.json)
+          P=$(sed -n 's/^  "version": *"\([^"]*\)".*/\1/p' package.json)
+          J=$(sed -n "s/^const VERSION='\([^']*\)'.*/\1/p" js/app.js)
+          echo "tag=$TAG version.json=$V package.json=$P app.js=$J"
+          [ "$TAG" = "v$V" ] && [ "$V" = "$P" ] && [ "$V" = "$J" ] || { echo "::error::Tag and versions do not match. Run deploy/bump.sh and re-tag."; exit 1; }
+          grep -q "^## \[$V\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no section for $V"; exit 1; }
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run check
+      - run: cd vendor && sha256sum -c SHA256SUMS
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+
+      - name: Build ZIP
+        run: ./deploy/make-zip.sh "portfolio-v${{ steps.ver.outputs.version }}.zip"
+
+      - name: Extract release notes from CHANGELOG
+        run: |
+          awk -v v="${{ steps.ver.outputs.version }}" '
+            $0 ~ "^## \\[" v "\\]" {on=1; next}
+            on && /^## \[/ {exit}
+            on {print}' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "::error::Release notes are empty"; exit 1; }
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ steps.ver.outputs.version }}"
+          FILES="portfolio-$TAG.zip portfolio-$TAG.zip.sha256"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" $FILES --clobber
+          else
+            gh release create "$TAG" $FILES --title "Portfolio $TAG" --notes-file notes.md --verify-tag
+          fi
+
+      - name: Stage site for hosting
+        run: |
+          mkdir site && unzip -q "portfolio-v${{ steps.ver.outputs.version }}.zip" -d site
+          ls -A site
+
+      - name: Deploy to hosting over FTPS (optional)
+        if: ${{ vars.DEPLOY_FTP == 'true' }}
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./site/
+          server-dir: ${{ vars.FTP_DIR || './' }}
+          # index.html is uploaded last by the action's diffing; version.json changes with every release,
+          # which is how open browser tabs learn there is an update.

@@ -26,6 +26,18 @@ jobs:
       - name: JavaScript syntax
         run: npm run check
 
+      - name: Versions agree and changelog is current
+        run: |
+          V=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' version.json)
+          P=$(sed -n 's/^  "version": *"\([^"]*\)".*/\1/p' package.json)
+          J=$(sed -n "s/^const VERSION='\([^']*\)'.*/\1/p" js/app.js)
+          echo "version.json=$V package.json=$P app.js=$J"
+          [ "$V" = "$P" ] && [ "$V" = "$J" ] || { echo "::error::Versions differ. Use deploy/bump.sh"; exit 1; }
+          grep -q "^## \[$V\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no section for $V"; exit 1; }
+
+      - name: PHP updater syntax
+        run: php -l deploy/update.php && php -l deploy/update.config.example.php
+
       - name: Vendored libraries are unmodified
         run: cd vendor && sha256sum -c SHA256SUMS
 

@@ -38,7 +38,7 @@ No server. No database. No tracking. Your data stays in your browser.</p>
 
 You need a domain with cPanel. About five minutes.
 
-1. **Get the files.** On GitHub choose **Code, Download ZIP**. Or run `./deploy/make-zip.sh` to build a ready-made `portfolio.zip` that already includes `.htaccess`.
+1. **Get the files.** Download `portfolio-vX.Y.Z.zip` from the latest [release](../../releases). It already includes `.htaccess`. (Or run `./deploy/make-zip.sh` yourself.)
 2. **Open File Manager** in cPanel and go to `public_html`. Create a folder, for example `finance`. (Use a subdomain's folder if you prefer `finance.yourdomain.com`.)
 3. **Upload** the ZIP into that folder, then right-click it and choose **Extract**.
 4. **Check the layout.** Directly inside the folder you should see `index.html`, `css/`, `js/`, `assets/`, `vendor/`. If there is an extra folder level, move the contents up.
@@ -50,7 +50,7 @@ You need a domain with cPanel. About five minutes.
    - On the server: cPanel **Directory Privacy** to add a username and password to the folder.
    - Optional: Cloudflare Access (below).
 
-To update later, upload the new files over the old ones. Your data lives in each browser, so it is untouched.
+To update later see [Releases and updates](#releases-and-updates). Your data lives in each browser, so it is untouched.
 
 > The same steps are in the app under **Settings, Install & hosting guide**.
 
@@ -70,6 +70,30 @@ Everything is static files, so any host works. Ready-made configs are in [`deplo
 | **Cloudflare Pages** | Connect the repo, no build command, output directory `/`. |
 | **Docker** | `docker compose -f deploy/docker-compose.yml up -d --build`, then open `http://localhost:8080`. |
 | **nginx / Caddy** | Serve the folder. See `deploy/nginx.conf` and `deploy/Caddyfile`. |
+
+## Releases and updates
+
+Versions follow [semantic versioning](https://semver.org/) and every change is listed in [CHANGELOG.md](CHANGELOG.md). Each [release](../../releases) has a ready-to-upload `portfolio-vX.Y.Z.zip` and its `.sha256`.
+
+**Updating a hosted site** (pick one):
+
+| Method | Setup | What happens |
+|---|---|---|
+| **Manual** | none | Download the new ZIP from Releases, upload and extract over the old files in File Manager. |
+| **Automatic over FTPS** | In the GitHub repo: Settings, Secrets and variables, Actions. Add secrets `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`; variables `DEPLOY_FTP=true` and `FTP_DIR` (for example `public_html/finance/`). Use a cPanel FTP account limited to that folder. | Publishing a release uploads it to your site. |
+| **One-click on the server** | Upload `deploy/update.php` next to `index.html`, copy `deploy/update.config.example.php` to `update.config.php`, set a long random token. Open `update.php`, enter the token, Check, Install. | The server downloads the latest release from GitHub, checks its SHA-256, backs up the old files to `.portfolio-backup/` and installs. Delete `update.php` when not in use. |
+
+Your data lives in each browser and is never touched by an update. Open tabs notice a new version within seconds of loading (the app compares its version with the site's `version.json`, a same-origin request) and show a **Reload** prompt. **Settings, Check for updates** does it on demand.
+
+**Publishing a release** (maintainers):
+
+```bash
+deploy/bump.sh 1.1.0                 # sets version.json, package.json and js/app.js
+# add a "## [1.1.0] - YYYY-MM-DD" section to CHANGELOG.md, then
+git commit -am "Release 1.1.0" && git tag v1.1.0 && git push origin main --tags
+```
+
+The **Release** workflow checks that the tag, versions and changelog agree, runs the tests, builds the ZIP, publishes the release with the changelog section as its notes, and deploys over FTPS if enabled.
 
 ## Security and privacy
 
@@ -92,13 +116,15 @@ node tests/screenshots.js   # regenerate docs/screenshots
 
 ```
 index.html        page shell
+version.json      current version (changes with every release)
+CHANGELOG.md      release history
 css/app.css       styles (themes, components, charts)
 js/app.js         application
 js/theme.js       sets the theme before first paint
 vendor/           pdf.js, SheetJS, Geist fonts (no CDN)
 assets/           logo
 samples/          example statements
-deploy/           .htaccess, nginx, Caddy, Docker, Netlify, Vercel, zip builder
+deploy/           .htaccess, nginx, Caddy, Docker, Netlify, Vercel, zip builder, version bump, update.php
 tests/            Playwright end-to-end tests
 docs/screenshots/ README images
 .github/          CI, Pages deploy, Dependabot
