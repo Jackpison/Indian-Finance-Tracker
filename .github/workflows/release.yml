@@ -23,6 +23,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
 
       - name: Check version consistency
         id: ver
@@ -48,13 +49,31 @@ jobs:
       - name: Build ZIP
         run: ./deploy/make-zip.sh "portfolio-v${{ steps.ver.outputs.version }}.zip"
 
-      - name: Extract release notes from CHANGELOG
+      - name: Write release notes (changelog + install + checksum)
         run: |
-          awk -v v="${{ steps.ver.outputs.version }}" '
+          V="${{ steps.ver.outputs.version }}"
+          awk -v v="$V" '
             $0 ~ "^## \\[" v "\\]" {on=1; next}
             on && /^## \[/ {exit}
-            on {print}' CHANGELOG.md > notes.md
-          test -s notes.md || { echo "::error::Release notes are empty"; exit 1; }
+            on {print}' CHANGELOG.md > changes.md
+          test -s changes.md || { echo "::error::Release notes are empty"; exit 1; }
+          PREV=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | grep -vx "v$V" | head -1 || true)
+          {
+            echo "## What's new in v$V"
+            echo
+            cat changes.md
+            echo
+            echo "## Install or update"
+            echo
+            echo "- **cPanel / any host:** download \`portfolio-v$V.zip\` below, upload it to your site folder and extract over the old files. Your data lives in the browser and is not touched."
+            echo "- **Automatic:** FTPS deploys and the one-click \`update.php\` are described in the [README](https://github.com/${{ github.repository }}#releases-and-updates)."
+            echo
+            echo "## Verify the download"
+            echo
+            echo "\`sha256: $(cut -d' ' -f1 "portfolio-v$V.zip.sha256")\`"
+            if [ -n "$PREV" ]; then echo; echo "**Full changelog:** https://github.com/${{ github.repository }}/compare/$PREV...v$V"; fi
+          } > notes.md
+          cat notes.md
 
       - name: Publish GitHub release
         env:
@@ -64,8 +83,9 @@ jobs:
           FILES="portfolio-$TAG.zip portfolio-$TAG.zip.sha256"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" $FILES --clobber
+            gh release edit "$TAG" --title "Portfolio $TAG" --notes-file notes.md --latest
           else
-            gh release create "$TAG" $FILES --title "Portfolio $TAG" --notes-file notes.md --verify-tag
+            gh release create "$TAG" $FILES --title "Portfolio $TAG" --notes-file notes.md --latest --verify-tag
           fi
 
       - name: Stage site for hosting
