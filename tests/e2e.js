@@ -47,7 +47,8 @@ console.log('Passcode + encryption');
 await p.click('[data-act=settings]');await p.waitForSelector('.sheet');await p.click('[data-act=setlock]');
 await p.fill('#pw1','Correct-Horse-9!');await p.fill('#pw2','Correct-Horse-9!');await p.click('#secgo');
 await p.waitForSelector('#lockbtn:not([hidden])',{timeout:30000});
-const raw=await p.evaluate(()=>new Promise(r=>{const q=indexedDB.open('portfolio-db',1);q.onsuccess=()=>{const g=q.result.transaction('kv').objectStore('kv').get('state');g.onsuccess=()=>r(JSON.stringify(g.result))}}));
+const readRaw=()=>p.evaluate(()=>new Promise(r=>{const q=indexedDB.open('portfolio-db',1);q.onsuccess=()=>{const g=q.result.transaction('kv').objectStore('kv').get('state');g.onsuccess=()=>r(JSON.stringify(g.result))}}));
+await p.waitForFunction(()=>true);let raw='';for(let i=0;i<40;i++){raw=await readRaw();if(raw.includes('"enc":true'))break;await p.waitForTimeout(500)}  /* encrypting a large state takes a moment */
 ok(raw.includes('"enc":true')&&!/SWIGGY|SALARY|GREENVIEW/i.test(raw),'stored state is encrypted, no plaintext');
 await p.reload();await p.waitForTimeout(1000);ok(await p.isVisible('#lock'),'locked after reload');
 await p.fill('#lockpw','nope');await p.click('#lockgo');await p.waitForTimeout(1800);ok(await p.isVisible('#lock'),'wrong passcode rejected');
