@@ -2,7 +2,7 @@
 
 <h1 align="center">Portfolio</h1>
 <p align="center"><b>A private money dashboard for Indian families.</b><br>
-Upload bank and credit card statements, see where the money goes, track investments and goals.<br>
+Upload bank and credit card statements, see where the money goes, track balances and investments.<br>
 No server. No database. No tracking. Your data stays in your browser.</p>
 
 <p align="center"><img src="docs/screenshots/overview-light.png" alt="Overview" width="900"></p>
@@ -17,7 +17,7 @@ No server. No database. No tracking. Your data stays in your browser.</p>
 | **Family** | Members, accounts, credit cards with limits and utilisation, per-person views. |
 | **Analytics** | Spending flow, income-to-spend Sankey, merchant treemap, daily calendar, year-by-month heatmap, year-over-year lines, savings rate, 3-month outlook, unusual payments, category growth. |
 | **Investments** | Stocks, mutual funds, PPF, EPF, NPS, Sukanya Samriddhi, LIC, FDs, gold, with annual limit trackers. |
-| **Goals, budgets, bills** | Goal funding, category budgets, recurring payment detection and upcoming bills. |
+| **Balance, bills** | Recurring payment detection and upcoming bills, transfer matching between your accounts. |
 | **Vault** | Card, account, PAN, Aadhaar and policy numbers. Last four characters show, the rest after you click Reveal. One-click copy. |
 | **Copy anything** | Every transaction can be copied; copy a whole filtered list for Excel or as CSV. |
 | **Themes** | Light, dark and system with an animated reveal. |

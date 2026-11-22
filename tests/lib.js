@@ -16,3 +16,7 @@ let fails=0;
 exports.ok=(cond,msg)=>{console.log((cond?'  ok   ':'  FAIL ')+msg);if(!cond)fails++};
 exports.done=async(h)=>{await h.browser.close();if(h.errors.length){console.log('  FAIL console/network errors:',h.errors.slice(0,5));fails++}process.exit(fails?1:0)};
 exports.csv=rows=>'Date,Narration,Debit,Credit,Balance\n'+rows.map(r=>r.join(',')).join('\n')+'\n';
+/* Restores the fictional family from tests/demo-data.js through Settings > Restore, like a user would. */
+exports.loadDemo=async p=>{const j=JSON.stringify(require('./demo-data').build());
+  await p.click('[data-act=settings]');await p.waitForSelector('.setp');await p.click('[data-act=bkshow]');await p.fill('#bktxt',j);await p.click('[data-act=bkgo]');
+  await p.waitForTimeout(800);if(await p.$('.sheet'))await p.click('[data-act=close]').catch(()=>{});await p.waitForTimeout(300)};

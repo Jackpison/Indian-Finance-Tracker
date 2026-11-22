@@ -99,8 +99,10 @@
 
     // --- account summary and fixed deposits (usually on the first page) ---
     const typeByNumber = {}, summary = [], holdings = [];
+    let fdListed = false;
     for (const p of all) for (const l of p.lines) {
       const t = l.text.replace(/\s+/g, ' ');
+      if (/^fixed deposits?\b/i.test(t)) fdListed = true;
       let m = t.match(/^(Savings|PPF|Current|Salary|Recurring Deposit|RD)\s*(?:A\/c|Account)\s+(\d{6,})\s+([\d,]+\.\d{2})/i);
       if (m) { typeByNumber[m[2]] = normType(m[1]); summary.push({ type: normType(m[1]), number: m[2], balance: toNum(m[3]) }); continue; }
       m = t.match(/^(\d{8,})\s+(\d{1,2}-\d{1,2}-\d{4})\s+([\d,]+\.\d{2})\s+([\d.]+)\s+(.+?)\s+([\d,]+\.\d{2})\s+(\d{1,2}-\d{1,2}-\d{4})\s+([\d,]+\.\d{2})(?:\s+[A-Za-z-]+)?$/);
@@ -228,7 +230,7 @@
       const interest = sec ? sec.rows.filter((r) => r.amt > 0 && /int/i.test(r.desc)).reduce((x, r) => x + r.amt, 0) : 0;
       holdings.push({ kind: 'PPF', number: a.number, invested: Math.max(0, Math.round(a.balance - interest)), value: Math.round(a.balance), bank });
     }
-    return { bank, sections: out, holdings, warnings };
+    return { bank, sections: out, holdings, fdListed, warnings };
   }
 
   /** Drop machine reference numbers from narrations so they read like a merchant, and dedupe stays stable. */

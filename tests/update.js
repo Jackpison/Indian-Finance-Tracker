@@ -15,8 +15,8 @@ const TYPES={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   await p.goto(base+'/');await p.waitForTimeout(800);
   ok(local===remote,'version.json matches the running version ('+local+')');
   remote='9.9.9';
-  await p.click('[data-act=settings]');await p.waitForSelector('.sheet');
-  ok(/v\d+\.\d+\.\d+/.test(await p.textContent('.sheet')),'settings shows the app version');
+  await p.click('[data-act=settings]');await p.waitForSelector('.setp');
+  ok(/v\d+\.\d+\.\d+/.test(await p.textContent('.setp')),'settings shows the app version');
   await p.click('[data-act=chkupd]');await p.waitForSelector('#upd',{timeout:5000});
   ok(/9\.9\.9/.test(await p.textContent('#upd')),'banner offers the newer version');
   await p.click('[data-act=updx]');ok(!(await p.$('#upd')),'banner can be dismissed');

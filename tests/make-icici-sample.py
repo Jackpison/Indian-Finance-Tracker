@@ -55,7 +55,7 @@ FDS = [
     ("663610000333", "20-09-2025", 150000.00, 6.60, "24 Mths 1 Day", "21-09-2027"),
 ]
 
-def build():
+def build(OUT=OUT, EXP=EXP, SAV_OPEN=SAV_OPEN, SAV=SAV, PPF_OPEN=PPF_OPEN, PPF=PPF, FDS=FDS):
     c = canvas.Canvas(str(OUT), pagesize=(W, H))
     c.setTitle("Bank Statement"); c.setAuthor("Sample Bank Ltd")
     y = [H - 40]
@@ -66,6 +66,7 @@ def build():
         txt(523.6, H, f"Page {n} of 3", 7.2)
         txt(27, H - 85, "MR SAMPLE USER", 8, "Helvetica-Bold")
     # ---- page 1: summary + FDs
+    txt(27, H - 40, "ICICI Bank Limited", 9, "Helvetica-Bold")
     txt(27, H - 60, "Summary of Accounts held under Cust ID: 000000000 as on March 31, 2026", 8, "Helvetica-Bold")
     txt(27, H - 85, "SAMPLE USER (fictional statement for testing)", 8)
     txt(27, H - 110, "ACCOUNT TYPE", 7, "Helvetica-Bold"); txt(200, H - 110, "A/c BALANCE(I)", 7, "Helvetica-Bold")
@@ -120,5 +121,23 @@ def build():
         "savings": {"rows": len(SAV), "in": round(sav_in, 2), "out": round(sav_out, 2), "closing": round(sav_bal, 2)},
     }, indent=2) + "\n")
 
+# A later statement (the next period): one FD matured, a new one opened, balances carried forward.
+SAV2_OPEN = SAV_OPEN + sum((d or 0) - (w or 0) for *_, d, w in SAV)
+SAV2 = [
+    ("02-04-2026", "", ["NEFT-ABCDN52026040200000003-SAMPLE", "SOFTWARE PRIVATE LIMITED-SALARY-", "ABCD0000001"], 80000.00, None),
+    ("06-04-2026", "", ["UPI/freshmart@ybl/Payment for FRESHMART/YES", "BANK LIMITED/600000000009/YBL0000000000000000000", "0009"], None, 2400.00),
+    ("14-07-2026", "", ["FD clos 14-07-2026 SAMPLE USER"], 100000.00, None),
+    ("16-07-2026", "", ["TRF TO FD no. 663610000444"], None, 120000.00),
+    ("20-07-2026", "", ["UPI/cafe.bean@axl/Payment on CafeBean/AXIS", "BANK/600000000010/AXL0000000000000000000000"], None, 560.00),
+]
+PPF2_OPEN = PPF_OPEN + sum((d or 0) - (w or 0) for *_, d, w in PPF)
+PPF2 = [("10-05-2026", "NET BANKING", ["INF/INFT/20260510000002/Self"], 20000.00, None)]
+FDS2 = [
+    ("663610000333", "20-09-2025", 150000.00, 6.60, "24 Mths 1 Day", "21-09-2027"),
+    ("663610000444", "16-07-2026", 120000.00, 6.90, "12 Mths", "16-07-2027"),
+]
+
 if __name__ == "__main__":
     build(); print("wrote", OUT)
+    out2 = OUT.with_name("icici-style-statement-next.pdf")
+    build(out2, out2.with_suffix(".expected.json"), SAV2_OPEN, SAV2, PPF2_OPEN, PPF2, FDS2); print("wrote", out2)

@@ -4,6 +4,19 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-22
+### Fixed
+- **Data safety.** Saved data can no longer be replaced or deleted by a stale tab or a failed start. Every save keeps a mirror copy, the previous version and a daily snapshot; if the main copy is missing the app offers to restore from them. A tab that finds newer data written elsewhere stops saving and asks you to reload. The app asks the browser for persistent storage, and shows a banner if a save fails.
+- Second statement import no longer leaves closed fixed deposits behind; a newer statement replaces the deposit list, an older one never overwrites newer data.
+
+### Added
+- **Balance** tab under Wealth: bank balances and other holdings, as a total and per family member.
+- Dedicated **Settings** page (General, Family, Accounts, Security, Backup, Data tools, About).
+- Grouped sidebar with page titles and subtitles, new stat cards, buttons and segmented controls.
+
+### Removed
+- Demo data, Goals and Budgets.
+
 ## [0.1.0] - 2026-11-22
 ### Added
 - Redesigned KPI cards on Overview: colour key, change versus the previous period, full-width trend line, and a savings-rate meter against a 20% goal.
