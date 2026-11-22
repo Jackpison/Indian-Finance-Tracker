@@ -9,6 +9,7 @@ await p.click('[data-act=settings]');await p.waitForSelector('.setp');
 const due=p.locator('input[data-change=adue]').first();await due.fill('15');await due.dispatchEvent('change');await p.waitForTimeout(400);
 await p.click('#tabs [data-v=cards]');await p.waitForSelector('.duerow .tg');
 ok(/Payment due/.test(await p.textContent('.duerow')),'Cards page shows the next payment due date');
+ok((await p.$$('#main .tg.own')).length>0,'owner tag shown on cards');
 console.log('Review queue');
 const f=path.join(tmp,'odd.csv');fs.writeFileSync(f,csv([['10/11/2026','"QQXZ MYSTERY VENDOR"','500.00','','1000.00']]));
 await p.setInputFiles('#file',f);await p.waitForSelector('.sheet');await p.click('[data-act=impgo]');await p.waitForTimeout(800);
@@ -37,6 +38,8 @@ ok((await p.$$('#themebtn')).length===1&&!(await p.$('[data-theme-set]')),'one s
 const th=()=>p.evaluate(()=>document.documentElement.getAttribute('data-theme'));
 await p.click('#themebtn');await p.waitForTimeout(500);const t1=await th();await p.click('#themebtn');await p.waitForTimeout(500);const t2=await th();
 ok(['light','dark'].includes(t1)&&['light','dark'].includes(t2)&&t1!==t2,'button flips between light and dark ('+t1+' then '+t2+')');
+console.log('Owner tags');
+for(const [v,sel] of [['tx','.txr .tg.own'],['bal','.lr .tg.own'],['inv','.tbl .tg.own']]){await p.click('#tabs [data-v='+v+']');await p.waitForTimeout(500);ok((await p.$$(sel)).length>0,'owner tag shown on '+v)}
 console.log('Offline shell');
 for(const n of ['sw.js','manifest.webmanifest']){ok(fs.existsSync(path.join(ROOT,n)),n+' exists')}
 JSON.parse(fs.readFileSync(path.join(ROOT,'manifest.webmanifest')));ok(true,'manifest is valid JSON');

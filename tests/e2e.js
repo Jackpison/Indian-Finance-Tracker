@@ -56,7 +56,7 @@ await p.click('#tabs [data-v=bal]');await p.waitForTimeout(400);
 ok(/2,14,318/.test(await p.textContent('#main')),'older statement does not overwrite the newer balance');
 
 console.log('Transfers + backup reminder');
-const catOf=async needle=>p.evaluate(n=>{const r=[...document.querySelectorAll('.tx:not(.hd)')].find(x=>x.textContent.includes(n));return r?r.querySelector('.tg').textContent:null},needle);
+const catOf=async needle=>p.evaluate(n=>{const r=[...document.querySelectorAll('.tx:not(.hd)')].find(x=>x.textContent.includes(n));return r?r.querySelector('.tg:not(.own)').textContent:null},needle);
 const fa=path.join(tmp,'acc-a.csv'),fb=path.join(tmp,'acc-b.csv');
 fs.writeFileSync(fa,csv([['10/02/2025','"WIDGETCO ZZQ REF"','7777.00','','1000.00']]));
 fs.writeFileSync(fb,csv([['11/02/2025','"INWARD ZZQ CREDIT"','','7777.00','8777.00']]));

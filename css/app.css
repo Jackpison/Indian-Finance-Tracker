@@ -529,3 +529,18 @@ html{scroll-behavior:smooth}
 #themebtn .ti-sun,#themebtn .ti-moon{display:grid;place-items:center}
 #themebtn .ti-sun{display:none}#themebtn.dark .ti-sun{display:grid}#themebtn.dark .ti-moon{display:none}
 .phu~.mem{display:none}
+
+/* owner tag */
+.tg.own:not(.ok):not(.warn):not(.bad){gap:6px;padding:2px 9px 2px 7px;background:color-mix(in srgb,var(--c) 13%,transparent);color:var(--fg)}
+.tg.own .dot{width:7px;height:7px;margin:0;flex:none}
+.txr .ds small .tg{margin-left:4px;vertical-align:1px}
+.lsub .tg{vertical-align:1px}
+
+/* page title lives in the empty left of the top bar on wide screens */
+.ptitle{display:none}
+@media(min-width:1100px){
+  .ptitle{display:flex;align-items:baseline;gap:12px;min-width:0;overflow:hidden;white-space:nowrap}
+  .ptitle h1{margin:0;font-size:22px;font-weight:650;letter-spacing:-.02em}
+  .ptitle span{color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis}
+  .bar .ph:not(.phu){display:none}
+}
