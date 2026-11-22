@@ -14,6 +14,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Dedicated **Settings** page (General, Family, Accounts, Security, Backup, Data tools, About).
 - Grouped sidebar with page titles and subtitles, new stat cards, buttons and segmented controls.
 
+- Transactions: click a row to expand it (details, change category, copy), filter panel with category and account chips and a count badge, tinted category tags, staggered fade-in.
+- Shorter period bar (five common periods plus a More menu); onboarding card hidden once you have data; styled tables.
+
 ### Removed
 - Demo data, Goals and Budgets.
 

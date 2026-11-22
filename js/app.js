@@ -57,7 +57,7 @@ const MCOL=['#3B5BFF','#E0568F','#12936A','#F2994A','#9B6BFF','#19A7CE'];
 /* ---------- state ---------- */
 const KEY='pocketbook.v2'; /* storage key kept from the original name so saved data keeps loading */
 const S={tx:[],hold:[],uploads:[],vault:[],members:[{id:'me',name:'Me',color:MCOL[0]}],accts:[],rules:{},cur:'INR',order:'',member:'all',range:'3m',view:'overview',
-  q:'',fcat:'all',ftype:'all',facct:'all',sort:{k:'d',dir:-1},limit:80,queue:[],imp:null};
+  q:'',fcats:[],faccts:[],ftype:'all',fp:false,xo:null,sort:{k:'d',dir:-1},limit:80,queue:[],imp:null};
 function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 /* ---------- storage: IndexedDB, optional AES-256-GCM passcode lock ---------- */
 const CAN_CRYPTO=!!(window.crypto&&crypto.subtle);
@@ -191,6 +191,7 @@ function getRange(){const b=bounds();if(!b)return null;const [y,m]=b.mx.split('-
 function fyList(){const b=bounds();if(!b)return[];const [y,m]=b.mx.split('-').map(Number),[y0,m0]=b.mn.split('-').map(Number),o=[];for(let f=fyStart(y,m);f>=fyStart(y0,m0);f--)o.push(f);return o}
 const RANGES=()=>{const b=bounds();let a='This month',c='Last month';if(b){const [y,m]=b.mx.split('-').map(Number);a=new Date(y,m-1,1).toLocaleDateString('en-IN',{month:'short',year:'numeric'});c=new Date(y,m-2,1).toLocaleDateString('en-IN',{month:'short',year:'numeric'})}
   return[['m0',a],['m1',c],['3m','3 months'],['6m','6 months'],['12m','12 months'],['fy','This FY'],['lfy','Last FY'],['5y','5 years'],['10y','10 years'],['all','All time']]};
+const PMAIN=['m0','3m','12m','fy','all'];const rangeName=()=>{const m=/^fy:(\d+)/.exec(S.range);return m?fyLabel(+m[1]):'More…'};
 const inMember=t=>S.member==='all'||t.m===S.member;
 const base=()=>S.tx.filter(inMember);
 const within=(a,f,t)=>a.filter(x=>x.d>=f&&x.d<=t);
@@ -208,7 +209,7 @@ function nice(v){if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v)))
 function spark(v,col){if(v.length<2)return'<span></span>';const w=110,h=34,mx=Math.max(...v),mn=Math.min(...v),sp=(mx-mn)||1;
   const pts=v.map((x,i)=>[2+i*(w-4)/(v.length-1),h-4-(x-mn)/sp*(h-8)]);const l=pts.map(p=>p.map(n=>n.toFixed(1)).join(',')).join(' ');const e=pts[pts.length-1];
   return`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polygon points="2,${h} ${l} ${w-2},${h}" fill="${col}" fill-opacity=".14"/><polyline points="${l}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${e[0]}" cy="${e[1]}" r="3" fill="${col}"/></svg>`}
-function cashChart(el,B){const W=Math.max(300,el.clientWidth),H=W>700?340:270,m={l:50,r:8,t:12,b:28};
+function cashChart(el,B){const W=Math.max(300,el.clientWidth),H=W>700?420:270,m={l:50,r:8,t:12,b:28};
   const mx=Math.max(1,...B.map(b=>Math.max(b.inc,b.sp))),mnv=Math.min(0,...B.map(b=>b.net));const ymax=nice(mx),ymin=mnv<0?-nice(-mnv):0;
   const y=v=>m.t+(H-m.t-m.b)*(1-(v-ymin)/(ymax-ymin));const band=(W-m.l-m.r)/B.length,bw=Math.min(26,band*.3);let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Income versus spending by period">`;
   for(let i=0;i<=4;i++){const v=ymin+(ymax-ymin)*i/4;s+=`<line class="grid-l" x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l-8}" y="${y(v)+4}" text-anchor="end">${compact(v)}</text>`}
@@ -236,6 +237,7 @@ const memberOpts=()=>S.members.map(m=>[m.id,m.name]);
 
 /* ---------- views ---------- */
 const ICON={
+filter:'<path d="M3 5h18M6 12h12M10 19h4"/>',
 overview:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
 tx:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
 cards:'<rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/>',
@@ -259,7 +261,7 @@ function renderChrome(){
   $('#lockbtn').hidden=!lockMeta;
   const showR=!['inv','up','vault','bal','settings'].includes(S.view),showM=!['up','vault','bal','settings'].includes(S.view);
   $('#bar').innerHTML=pageHead()+`<div class="mem" role="group" aria-label="Family member"><button class="pill" aria-pressed="${S.member==='all'}" data-act="member" data-v="all">Everyone</button>${S.members.map(m=>`<button class="pill" aria-pressed="${S.member===m.id}" data-act="member" data-v="${m.id}"><span class="dot" style="--c:${m.color}"></span>${esc(m.name)}</button>`).join('')}</div>
-  <div class="grow"></div>${showR?`<div class="pills" role="group" aria-label="Period">${RANGES().map(([k,l])=>`<button class="pill" aria-pressed="${S.range===k}" data-act="range" data-v="${k}">${esc(l)}</button>`).join('')}</div>${fyList().length>1?`<select class="fysel" id="fysel" aria-label="Jump to financial year"><option value="">Jump to FY…</option>${fyList().map(f=>`<option value="fy:${f}" ${S.range==='fy:'+f?'selected':''}>${fyLabel(f)}</option>`).join('')}</select>`:''}`:''}`}
+  <div class="grow"></div>${showR?`<div class="pills" role="group" aria-label="Period">${RANGES().filter(([k])=>PMAIN.includes(k)).map(([k,l])=>`<button class="pill" aria-pressed="${S.range===k}" data-act="range" data-v="${k}">${esc(l)}</button>`).join('')}</div><select class="fysel" id="fysel" aria-label="More periods"><option value="">${PMAIN.includes(S.range)?'More…':esc((RANGES().find(r=>r[0]===S.range)||[0,rangeName()])[1])}</option>${RANGES().filter(([k])=>!PMAIN.includes(k)).map(([k,l])=>`<option value="${k}" ${S.range===k?'selected':''}>${esc(l)}</option>`).join('')}${fyList().map(f=>`<option value="fy:${f}" ${S.range==='fy:'+f?'selected':''}>${fyLabel(f)}</option>`).join('')}</select>`:''}`}
 /* ---------- analytics ---------- */
 const CH=[];const cc=n=>CC[n]||'#98A2B3';
 function chart(id,fn){CH.push([id,fn])}
@@ -286,7 +288,7 @@ const ticksX=(keys,W,m)=>{const N=keys.length,band=(W-m.l-m.r)/Math.max(1,N-1);l
 
 function anaView(){const rg=getRange();if(!rg)return empty('Import transactions to see analytics.');
   const sub=S.ana||'trends',who=S.member==='all'?'the whole family':memOf(S.member).name;
-  const head=`<div class="sec" style="margin-top:0"><div><h2>Analytics</h2><div class="muted">${sub==='years'?'All years on record':esc(rg.label)} · ${esc(who)}</div></div>${seg('anasub',[['trends','Trends'],['cats','Categories'],['patterns','Patterns'],['years','Years']],sub)}</div>`;
+  const head=`<div class="sec" style="margin-top:0"><div><div class="muted" style="font-size:13.5px">${sub==='years'?'All years on record':esc(rg.label)} · ${esc(who)}</div></div>${seg('anasub',[['trends','Trends'],['cats','Categories'],['patterns','Patterns'],['years','Years']],sub)}</div>`;
   const cur=within(base(),rg.from,rg.to);
   return head+{trends:anaTrends,cats:anaCats,patterns:anaPatterns,years:anaYears}[sub](rg,cur)}
 
@@ -305,8 +307,8 @@ function anaTrends(rg,cur){const ms=MS(),to=rg.to<rg.mx?rg.to:rg.mx;let from=rg.
   const ft=fyTotals(MS()),done=Object.keys(ft).map(Number).filter(fyComplete).sort((a,b)=>a-b);let cagr=null;if(done.length>=2){const a=ft[done[0]].sp,z=ft[done[done.length-1]].sp;if(a>0&&z>0)cagr=(Math.pow(z/a,1/(done.length-1))-1)*100}
   const fc=forecast();
   chart('ch-stream',el=>streamChart(el,keys,ms,S.stream||'stream'));chart('ch-cum',el=>cumChart(el,keys,ms));chart('ch-rate',el=>rateChart(el,keys,ms));
-  return`<div class="grid" style="margin-bottom:14px">${tile('Avg monthly income',tick(avgI),`over ${N} month${N>1?'s':''}`)}${tile('Avg monthly spend',tick(avgS),cagr==null?'':`${cagr>=0?'+':''}${cagr.toFixed(1)}% a year`)}${tile('Savings rate',tick(rate,'p'),rate>=20?'Healthy':rate>=5?'Could be higher':'Low')}
-  ${tile('Best month',bi>=0&&N?mLabel(...keys[bi].split('-').map(Number)):'—',bi>=0&&N?`${money(nets[bi])} saved`:'')}${tile('Spend volatility',`${cv.toFixed(0)}%`,cv<20?'Very steady':cv<40?'Fairly steady':'Lumpy')}${tile('Runway',runway?`${runway.toFixed(1)} mo`:'—',liquid?`${compact(liquid)} liquid assets`:'Add investments')}</div>
+  return`<div class="grid" style="margin-bottom:14px">${tile('Avg income',tick(avgI),`over ${N} month${N>1?'s':''}`)}${tile('Avg spend',tick(avgS),cagr==null?'':`${cagr>=0?'+':''}${cagr.toFixed(1)}% a year`)}${tile('Savings rate',tick(rate,'p'),rate>=20?'Healthy':rate>=5?'Could be higher':'Low')}
+  ${tile('Best month',bi>=0&&N?mLabel(...keys[bi].split('-').map(Number)):'—',bi>=0&&N?`${money(nets[bi])} saved`:'')}${tile('Volatility',`${cv.toFixed(0)}%`,cv<20?'Very steady':cv<40?'Fairly steady':'Lumpy')}${tile('Runway',runway?`${runway.toFixed(1)} mo`:'—',liquid?`${compact(liquid)} liquid assets`:'Add investments')}</div>
   <div class="grid">${acard('s12','Spending flow',seg('streammode',[['stream','Flow'],['stack','Stacked'],['pct','Share']],S.stream||'stream'),'<div id="ch-stream" class="chart"></div><div id="ch-stream-l" class="legend" style="margin-top:10px"></div>')}
   ${acard('s6','Cumulative savings and investing','<span class="legend"><span><i style="background:var(--accent)"></i>Saved</span><span><i style="background:var(--in)"></i>Invested</span></span>','<div id="ch-cum" class="chart"></div>')}
   ${acard('s6','Savings rate by month','<span class="legend"><span><i style="background:var(--in)"></i>Month</span><span><i style="background:var(--accent)"></i>6-mo average</span></span>','<div id="ch-rate" class="chart"></div>')}
@@ -323,7 +325,7 @@ function streamChart(el,keys,ms,mode){const W=Math.max(320,el.clientWidth),H=370
   const maxTop=Math.max(...cum,1),minBase=Math.min(...baseL,0);let ymin,ymax;
   if(mode==='pct'){ymin=0;ymax=100}else if(mode==='stream'){ymax=maxTop*1.06;ymin=minBase*1.06}else{ymin=0;ymax=nice(maxTop)}
   const x=i=>m.l+i*(W-m.l-m.r)/(N-1),y=v=>m.t+(H-m.t-m.b)*(1-(v-ymin)/(ymax-ymin)),id='sg'+uid();
-  let s=`<svg class="reveal" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Spending by category over time"><defs>${names.map((n,j)=>{const c=n==='Other categories'?'#98A2B3':cc(n);return`<linearGradient id="${id}${j}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c}" stop-opacity=".95"/><stop offset="1" stop-color="${c}" stop-opacity=".6"/></linearGradient>`}).join('')}</defs>`;
+  let s=`<svg class="reveal" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Spending by category over time"><defs>${names.map((n,j)=>{const c=n==='Other categories'?'#98A2B3':cc(n);return`<linearGradient id="${id}${j}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c}" stop-opacity=".88"/><stop offset="1" stop-color="${c}" stop-opacity=".78"/></linearGradient>`}).join('')}</defs>`;
   if(mode!=='stream'){for(let i=0;i<=4;i++){const v=ymin+(ymax-ymin)*i/4;s+=`<line class="grid-l" x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l-8}" y="${y(v)+4}" text-anchor="end">${mode==='pct'?Math.round(v)+'%':compact(v)}</text>`}}
   for(let j=names.length-1;j>=0;j--){const U=keys.map((_,i)=>[x(i),y(up[j][i])]),L=keys.map((_,i)=>[x(i),y(lo[j][i])]);
     s+=`<path d="M${U[0][0]},${U[0][1]}${mono(U)}L${L[N-1][0]},${L[N-1][1]}${mono(L.slice().reverse())}Z" fill="url(#${id}${j})" stroke="var(--surface)" stroke-width=".8" stroke-linejoin="round"/>`}
@@ -481,7 +483,7 @@ function hero(rg){const h=new Date().getHours(),g=h<12?'Good morning':h<17?'Good
   return`<div class="hero"><div><div class="eyebrow">${esc(rg.label)} · ${esc(who)}</div><h1 class="gtext">${g}</h1><p class="muted">Here is how ${esc(S.member==='all'?'your family':memOf(S.member).name)} is doing.</p></div><div class="hero-r"><span class="chip">${S.tx.length.toLocaleString('en-IN')} transactions</span><span class="chip">${S.uploads.length} files imported</span></div></div>`}
 function onboard(){const real=true;let dis=false;try{dis=localStorage.getItem('pocketbook.onb')==='1'}catch(e){}
   const steps=[['Import a bank or card statement',real&&S.uploads.some(u=>u.kind==='tx'),'import'],['Add your family members',real&&S.members.length>1,'settings'],['Track your investments',real&&S.hold.length>0,'addhold']];
-  const n=steps.filter(x=>x[1]).length;if(real&&(n===3||dis))return'';
+  const n=steps.filter(x=>x[1]).length;if(real&&(n===3||dis||S.tx.length))return'';
   return`<div class="card onb"><div class="onbh"><div><b>Get started</b><div class="muted">Import a statement and your balances, spending and investments fill in here. Files are read in your browser and never uploaded.</div></div><div class="onbr"><span class="num muted">${n} of 3</span><button class="btn sm" data-act="onbx">Dismiss</button></div></div><div class="prog"><i style="width:${n*33.3}%"></i></div>
   <div class="steps">${steps.map(([t,d,a],i)=>`<button class="step ${d?'done':''}" data-act="${a}"><span class="chk">${d?'✓':i+1}</span><span class="t">${t}</span></button>`).join('')}</div></div>`}
 function dChip(cur,prev,invert){if(!prev||prev===0)return'';const p=(cur-prev)/Math.abs(prev)*100;if(!isFinite(p))return'';const up=p>=0,good=invert?!up:up;
@@ -525,24 +527,32 @@ function insights(cur,prv,c,p,rate,days,cats){const o=[],G='var(--in)',R='var(--
   const r=recurring().filter(x=>x.sign<0);if(r.length)o.push([W,`Recurring bills and subscriptions cost about <b>${money(r.reduce((a,x)=>a+x.monthly,0))}</b> a month.`]);return o.slice(0,6)}
 
 /* transactions */
+function txFilterN(){return S.fcats.length+S.faccts.length+(S.ftype!=='all'?1:0)}
+function txFilterUI(){const accts=S.accts.filter(a=>S.tx.some(t=>t.acct===a.id)),n=txFilterN();
+  return`<div class="tools"><input class="in-t" id="q" type="search" placeholder="Search description, category or amount" value="${esc(S.q)}" aria-label="Search">
+  <div class="seg" role="group" aria-label="Type">${[['all','All'],['out','Money out'],['in','Money in']].map(([v,l])=>`<button class="pill" aria-pressed="${S.ftype===v}" data-act="ftype" data-v="${v}">${l}</button>`).join('')}</div>
+  <button class="btn sm fbtn" data-act="fpanel" aria-expanded="${S.fp}">${svg(ICON.filter,15)}Filters${S.fcats.length+S.faccts.length?`<span class="cnt">${S.fcats.length+S.faccts.length}</span>`:''}</button>
+  <button class="btn sm" data-act="copytsv">Copy for Excel</button><button class="btn sm" data-act="copycsv">Copy CSV</button></div>
+  <div class="fpan ${S.fp?'open':''}" id="fpan"><div><div class="fin"><div class="fg"><h4>Category</h4><div class="chips">${CATS.map(([c,col])=>`<button class="fchip" style="--c:${col}" aria-pressed="${S.fcats.includes(c)}" data-act="fchip" data-k="c" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div></div>
+  <div class="fg"><h4>Account</h4><div class="chips">${accts.map(a=>`<button class="fchip" aria-pressed="${S.faccts.includes(a.id)}" data-act="fchip" data-k="a" data-v="${a.id}">${esc(a.name)}</button>`).join('')}</div></div>
+  ${n?`<button class="btn sm ghost" data-act="fclear">Clear all filters</button>`:''}</div></div></div>`}
 function txView(){if(!S.tx.length)return empty('No transactions yet.');
-  const accts=S.accts.filter(a=>S.tx.some(t=>t.acct===a.id));
-  return`<div class="tools"><input class="in-t" id="q" type="search" placeholder="Search description or merchant" value="${esc(S.q)}" aria-label="Search">
-  <select class="in-t" id="fcat" aria-label="Category" style="flex:0 1 170px"><option value="all">All categories</option>${CATS.map(([n])=>`<option ${S.fcat===n?'selected':''}>${esc(n)}</option>`).join('')}</select>
-  <select class="in-t" id="facct" aria-label="Account" style="flex:0 1 190px"><option value="all">All accounts</option>${accts.map(a=>`<option value="${a.id}" ${S.facct===a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</select>
-  <select class="in-t" id="ftype" aria-label="Type" style="flex:0 1 130px">${[['all','In & out'],['out','Money out'],['in','Money in']].map(([v,l])=>`<option value="${v}" ${S.ftype===v?'selected':''}>${l}</option>`).join('')}</select>
-  <button class="btn sm" data-act="copytsv">Copy for Excel</button><button class="btn sm" data-act="copycsv">Copy CSV</button></div><div class="card" style="padding:14px 16px"><div id="txrows"></div></div>`}
+  return`<div id="txf">${txFilterUI()}</div><div class="card" style="padding:6px 16px 14px"><div id="txrows"></div></div>`}
 function txFiltered(){const rg=getRange();const q=S.q.trim().toLowerCase();let a=within(base(),rg.from,rg.to);
-  if(S.fcat!=='all')a=a.filter(t=>t.cat===S.fcat);if(S.facct!=='all')a=a.filter(t=>t.acct===S.facct);
+  if(S.fcats.length)a=a.filter(t=>S.fcats.includes(t.cat));if(S.faccts.length)a=a.filter(t=>S.faccts.includes(t.acct));
   if(S.ftype==='out')a=a.filter(t=>t.amt<0);if(S.ftype==='in')a=a.filter(t=>t.amt>0);
   if(q)a=a.filter(t=>t.desc.toLowerCase().includes(q)||t.cat.toLowerCase().includes(q)||String(Math.abs(t.amt)).includes(q));
   const {k,dir}=S.sort;a.sort((x,y)=>k==='d'?(x.d<y.d?-1:x.d>y.d?1:0)*dir:(x.amt-y.amt)*dir);return a}
-function renderTxRows(){const el=$('#txrows');if(!el)return;const a=txFiltered();const s=sums(a);const arrow=k=>S.sort.k===k?(S.sort.dir<0?' ↓':' ↑'):'';
+function renderTxRows(){const el=$('#txrows');if(!el)return;const a=txFiltered();const arrow=k=>S.sort.k===k?(S.sort.dir<0?' ↓':' ↑'):'';
   el.innerHTML=`<div class="tx hd"><button data-act="sort" data-v="d">Date${arrow('d')}</button><span>Description</span><span>Category</span><button data-act="sort" data-v="a" style="text-align:right">Amount${arrow('a')}</button></div>`+
-  (a.slice(0,S.limit).map(t=>{const ac=acctOf(t.acct),mm=memOf(t.m);return`<div class="tx"><span class="d">${fd(t.d)}</span><span class="ds"><b title="${esc(t.desc)}">${esc(t.desc)}</b><small>${esc(ac.name)} · ${esc(mm.name)}</small></span>
-    <span class="c"><select class="csel" style="--c:${CC[t.cat]||'#999'}" data-change="cat" data-id="${t.id}" aria-label="Category">${CATS.map(([n])=>`<option ${n===t.cat?'selected':''}>${esc(n)}</option>`).join('')}</select></span><span class="a num ${t.amt>0?'in':''}"><button class="cpy" data-act="cpy" data-id="${t.id}" aria-label="Copy transaction" title="Copy transaction"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg></button> ${t.amt>0?'+':'−'}${money(Math.abs(t.amt),2)}</span></div>`}).join('')||'<div class="empty">No transactions match.</div>')+
+  (a.slice(0,S.limit).map((t,i)=>{const ac=acctOf(t.acct),mm=memOf(t.m),op=S.xo===t.id;return`<div class="txr${op?' open':''}" style="--i:${Math.min(i,14)}"><div class="tx" data-act="xrow" data-id="${t.id}" role="button" tabindex="0" aria-expanded="${op}"><span class="d">${fd(t.d)}</span><span class="ds"><b title="${esc(t.desc)}">${esc(t.desc)}</b><small>${esc(ac.name)} · ${esc(mm.name)}</small></span>
+    <span class="c"><span class="tg" style="--c:${CC[t.cat]||'#999'}">${esc(t.cat)}</span></span><span class="a num ${t.amt>0?'in':''}">${t.amt>0?'+':'−'}${money(Math.abs(t.amt),2)}</span></div>
+    <div class="txd"><div><div class="txg"><div><small>Description</small><p>${esc(t.desc)}</p></div><div><small>Account</small><p>${esc(ac.name)}</p></div><div><small>Person</small><p>${esc(mm.name)}</p></div><div><small>Date</small><p>${fd(t.d)}</p></div>
+    <div><small>Category</small><select class="csel" style="--c:${CC[t.cat]||'#999'}" data-change="cat" data-id="${t.id}" aria-label="Category">${CATS.map(([n])=>`<option ${n===t.cat?'selected':''}>${esc(n)}</option>`).join('')}</select></div>
+    <div class="txa"><button class="btn sm" data-act="cpy" data-id="${t.id}">Copy</button></div></div></div></div></div>`}).join('')||`<div class="empty">No transactions match.${txFilterN()||S.q?' <button class="btn sm" data-act="fclear">Clear filters</button>':''}</div>`)+
   (a.length>S.limit?`<div style="text-align:center;padding-top:12px"><button class="btn sm" data-act="more">Show more (${a.length-S.limit} left)</button></div>`:'')+
   `<div class="muted" style="padding-top:12px;border-top:1px solid var(--line);margin-top:8px;font-size:13px">${a.length} transactions · in <b class="in num">${money(a.filter(t=>t.amt>0).reduce((x,t)=>x+t.amt,0))}</b> · out <b class="out num">${money(-a.filter(t=>t.amt<0).reduce((x,t)=>x+t.amt,0))}</b></div>`}
+function txRefresh(){S.limit=80;const f=$('#txf');if(f){const q=$('#q'),pos=q&&q.selectionStart,had=q&&document.activeElement===q;f.innerHTML=txFilterUI();const n=$('#q');if(had&&n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}}renderTxRows()}
 
 /* cards */
 function cards(){const cs=S.accts.filter(a=>a.type==='card'&&(S.member==='all'||a.member===S.member));const rg=getRange();
@@ -841,9 +851,8 @@ function balView(){const nw=netWorth();
    <div class="s3">${stat('Card dues',money(Math.abs(nw.due)),nw.due?'amount you owe':'none recorded',nw.due?'out':'')}</div>
    <div class="card s12">${balMatrix()}</div>
    <div class="card s12"><div class="ch"><div><h3>Bank and card accounts</h3><div class="cs">Balance is the closing balance on your latest statement, plus anything imported after it.</div></div></div>${accs.length?accs.map(row).join(''):'<div class="muted" style="padding:14px 0">Import a statement to add accounts.</div>'}</div>
-   <div class="card s7"><div class="ch"><div><h3>Fixed deposits</h3><div class="cs">${fds.length?`${fds.length} running · ${money(fdTot)} in total`:'None found in your statements'}</div></div><button class="btn sm link" data-act="view" data-v="inv">Open investments →</button></div>
+   <div class="card s12"><div class="ch"><div><h3>Fixed deposits</h3><div class="cs">${fds.length?`${fds.length} running · ${money(fdTot)} in total`:'None found in your statements'}</div></div><button class="btn sm link" data-act="view" data-v="inv">Open investments →</button></div>
     ${fds.map(h=>{const dl=h.maturity?daysBetween(today,h.maturity):null;return`<div class="lr"><div class="lm"><div class="ln">${esc(h.name)} ${h.rate?`<span class="tg ok">${h.rate}%</span>`:''}</div><div class="lsub">${h.maturity?`Matures ${fd(h.maturity)}${dl!=null?(dl<0?' · past maturity':` · in ${dl} days`):''}`:'No maturity date'}</div></div><div class="lv"><span class="num">${money(h.value)}</span></div></div>`}).join('')}</div>
-   <div class="card s5"><div class="ch"><div><h3>Everything else you own</h3><div class="cs">By type</div></div></div>${other.length?other.map(([n,v,c])=>`<div class="lr"><div class="lm"><div class="ln"><span class="dot" style="--c:${c}"></span> ${esc(n)}</div></div><div class="lv"><span class="num">${money(v)}</span></div></div>`).join(''):'<div class="muted" style="padding:14px 0">No other holdings.</div>'}</div>
   </div>`}
 function balMatrix(){const ms=S.members,all=a=>a;
   const bankOf=m=>S.accts.filter(a=>a.member===m&&a.type!=='card'&&a.sub!=='PPF').reduce((x,a)=>x+(curBal(a)||0),0),dueOf=m=>S.accts.filter(a=>a.member===m&&a.type==='card').reduce((x,a)=>x+Math.min(0,curBal(a)||0),0),
@@ -927,7 +936,11 @@ const A={
  anasub(e){S.ana=e.dataset.v;render()},streammode(e){S.stream=e.dataset.v;render()},calyear(e){S.calYear=e.dataset.v;render()},hmetric(e){S.hm=e.dataset.v;render()},yoytog(e){const f=e.dataset.v;(S._yoy||(S._yoy={}))[f]=!S._yoy[f];render()},
  view(e){S.view=e.dataset.v;if(S.view!=='tx'){}render();window.scrollTo(0,0)},
  member(e){S.member=e.dataset.v;render()},range(e){S.range=e.dataset.v;render()},
- cat(e){S.fcat=e.dataset.v;S.view='tx';render()},sort(e){const k=e.dataset.v;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:-1};renderTxRows()},more(){S.limit+=120;renderTxRows()},
+ cat(e){S.fcats=[e.dataset.v];S.fp=true;S.view='tx';render()},
+ xrow(e){const r=e.closest('.txr');if(!r)return;const o=!r.classList.contains('open');document.querySelectorAll('.txr.open').forEach(x=>{x.classList.remove('open');x.firstElementChild.setAttribute('aria-expanded','false')});if(o){r.classList.add('open');e.setAttribute('aria-expanded','true')}S.xo=o?e.dataset.id:null},
+ fpanel(e){S.fp=!S.fp;const p=$('#fpan');if(p)p.classList.toggle('open',S.fp);e.setAttribute('aria-expanded',String(S.fp))},
+ fchip(e){const l=e.dataset.k==='c'?S.fcats:S.faccts,v=e.dataset.v,i=l.indexOf(v);i<0?l.push(v):l.splice(i,1);txRefresh()},
+ ftype(e){S.ftype=e.dataset.v;txRefresh()},fclear(){S.fcats=[];S.faccts=[];S.ftype='all';S.q='';txRefresh()},sort(e){const k=e.dataset.v;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:-1};renderTxRows()},more(){S.limit+=120;renderTxRows()},
  import(){$('#file').click()},add(){addTxDialog()},addhold(){holdForm()},settings(){settings()},close(){closeModal()},
  edithold(e){holdForm(S.hold.find(h=>h.id===e.dataset.id))},
  holdsave(e){const n=$('#hname').value.trim();if(!n)return toast('Give it a name');const o={name:n,type:$('#htype').value,m:$('#hm').value,invested:+$('#hinv').value||0,value:+$('#hval').value||+$('#hinv').value||0,fy:$('#hfy').value===''?undefined:+$('#hfy').value,maturity:$('#hmat').value||undefined};
@@ -983,8 +996,7 @@ function readImp(){const i=S.imp;if(!i||i.kind!=='tx')return;const g=id=>$('#'+i
   v('mdate','date');v('mdesc','desc');v('mamt','amt');v('mdeb','debit');v('mcre','credit');if($('#iorder'))i.order=$('#iorder').value;if($('#iflip'))i.flip=$('#iflip').checked;
   if($('#inm'))i.nm=$('#inm').value;if($('#ity'))i.acctType=$('#ity').value;if($('#imem'))i.mem=$('#imem').value;if($('#iacct'))i.acct=$('#iacct').value}
 document.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.change&&C[t.dataset.change]){C[t.dataset.change](t)}
-  else if(t.id==='fysel'){if(t.value){S.range=t.value;render()}}
-  else if(t.id==='fcat'){S.fcat=t.value;S.limit=80;renderTxRows()}else if(t.id==='facct'){S.facct=t.value;S.limit=80;renderTxRows()}else if(t.id==='ftype'){S.ftype=t.value;S.limit=80;renderTxRows()}
+  else if(t.id==='fysel'){if(t.value){S.xo=null;S.range=t.value;render()}}
   else if(t.id==='bkfile'){t.files[0]&&t.files[0].text().then(x=>{$('#bktxt').value=x})}
   else if(t.id==='file'){const f=[...t.files];t.value='';takeFiles(f)}});
 document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;S.limit=80;renderTxRows()}else if(e.target.dataset&&e.target.dataset.change==='pwmeter')C.pwmeter(e.target)});
@@ -1010,6 +1022,7 @@ $('#cmdq').addEventListener('input',()=>{cmdSel=0;drawCmd()});
 $('#cmdq').addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();cmdSel=Math.min(cmdList.length-1,cmdSel+1);drawCmd()}else if(e.key==='ArrowUp'){e.preventDefault();cmdSel=Math.max(0,cmdSel-1);drawCmd()}else if(e.key==='Enter'){e.preventDefault();runCmd(cmdSel)}else if(e.key==='Escape')closeCmd()});
 $('#cmdl').addEventListener('click',e=>{const b=e.target.closest('.ci');if(b)runCmd(+b.dataset.i)});
 $('#cmd').addEventListener('click',e=>{if(e.target.id==='cmd')closeCmd()});
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.dataset&&e.target.dataset.act==='xrow'){e.preventDefault();A.xrow(e.target)}});
 document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#cmd').hidden?openCmd():closeCmd()}
   else if(e.key==='/'&&!/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||'')&&$('#cmd').hidden&&$('#modal').hidden){e.preventDefault();openCmd()}});
 try{if(/Mac|iPhone|iPad/.test(navigator.platform))$('.search kbd').textContent='⌘K'}catch(e){}
