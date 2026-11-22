@@ -20,5 +20,12 @@ const TYPES={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   await p.click('[data-act=chkupd]');await p.waitForSelector('#upd',{timeout:5000});
   ok(/9\.9\.9/.test(await p.textContent('#upd')),'banner offers the newer version');
   await p.click('[data-act=updx]');ok(!(await p.$('#upd')),'banner can be dismissed');
+  await p.route('**/update.php',route=>{const b=route.request().postData()||'';if(!/token/.test(b))return route.fulfill({status:403,body:'{}'});
+    if(/do"\r\n\r\ninstall/.test(b))return route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,version:'9.9.9'})});
+    return route.fulfill({contentType:'application/json',body:JSON.stringify({installed:local,latest:'9.9.9',newer:true,notes:'- Test note'})})});
+  await p.click('[data-act=updpage]');await p.waitForSelector('#utok');await p.fill('#utok','x'.repeat(24));await p.click('[data-act=updcheck]');await p.waitForSelector('[data-act=updinstall]');
+  ok(/9\.9\.9/.test(await p.textContent('.setp')),'Updates page offers the release from GitHub');
+  await p.click('[data-act=updinstall]');await p.waitForSelector('text=Updated to v9.9.9');ok(true,'install reports success');
+  await p.click('[data-act=updtab][data-v=log]');ok(/Test note/.test(await p.textContent('.setp')),'release notes shown');
   srv.close();await done(h);
 })().catch(e=>{console.error(e);process.exit(1)});

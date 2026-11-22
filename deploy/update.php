@@ -122,6 +122,23 @@ function install(string $root, array $rel): void {
     if (function_exists('opcache_reset')) @opcache_reset();
 }
 
+function jout(array $d, int $c = 200): never { http_response_code($c); header('Content-Type: application/json'); echo json_encode($d); exit; }
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['api'] ?? '') === '1') { // used by the in-app Updates page
+    usleep(400000);
+    if (!hash_equals((string)$cfg['token'], (string)($_POST['token'] ?? ''))) jout(['error' => 'Wrong token.'], 403);
+    $lk = fopen($root . '/.update.lock', 'c');
+    if (!$lk || !flock($lk, LOCK_EX | LOCK_NB)) jout(['error' => 'An update is already running.'], 409);
+    try {
+        $cur = current_version($root); $rel = latest($cfg); $newer = version_compare($rel['version'], $cur, '>');
+        if (($_POST['do'] ?? '') === 'install') {
+            if (!$newer) jout(['ok' => true, 'version' => $cur, 'note' => 'Already up to date.']);
+            install($root, $rel);
+            jout(['ok' => true, 'version' => $rel['version']]);
+        }
+        jout(['installed' => $cur, 'latest' => $rel['version'], 'newer' => $newer, 'notes' => mb_substr($rel['notes'], 0, 6000)]);
+    } catch (Throwable $e) { jout(['error' => $e->getMessage()], 500); }
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     out('<p>Current version: <b>' . h(current_version($root)) . '</b></p><form method="post"><p><label>Update token<br><input type="password" name="token" autocomplete="off" required style="width:100%"></label></p><button name="do" value="check">Check for updates</button></form>');
 }

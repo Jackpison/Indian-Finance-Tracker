@@ -17,6 +17,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - Transactions: click a row to expand it (details, change category, copy), filter panel with category and account chips and a count badge, tinted category tags, staggered fade-in.
 - Shorter period bar (five common periods plus a More menu); onboarding card hidden once you have data; styled tables.
 
+- **Updates** page: check GitHub for a new release, read what changed and install it in one click. It talks to `update.php` on your own site, which downloads the release, verifies its SHA-256 and keeps a backup. Needs `update.php` uploaded once (see the hosting guide).
+
 ### Removed
 - Demo data, Goals and Budgets.
 

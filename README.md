@@ -81,7 +81,7 @@ Versions follow [semantic versioning](https://semver.org/) and every change is l
 |---|---|---|
 | **Manual** | none | Download the new ZIP from Releases, upload and extract over the old files in File Manager. |
 | **Automatic over FTPS** | In the GitHub repo: Settings, Secrets and variables, Actions. Add secrets `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`; variables `DEPLOY_FTP=true` and `FTP_DIR` (for example `public_html/finance/`). Use a cPanel FTP account limited to that folder. | Publishing a release uploads it to your site. |
-| **One-click on the server** | Upload `deploy/update.php` next to `index.html`, copy `deploy/update.config.example.php` to `update.config.php`, set a long random token. Open `update.php`, enter the token, Check, Install. | The server downloads the latest release from GitHub, checks its SHA-256, backs up the old files to `.portfolio-backup/` and installs. Delete `update.php` when not in use. |
+| **One-click on the server** (also in the app under **Updates**) | Upload `deploy/update.php` next to `index.html`, copy `deploy/update.config.example.php` to `update.config.php`, set a long random token. Open `update.php`, enter the token, Check, Install. | The server downloads the latest release from GitHub, checks its SHA-256, backs up the old files to `.portfolio-backup/` and installs. Delete `update.php` when not in use. |
 
 Your data lives in each browser and is never touched by an update. Open tabs notice a new version within seconds of loading (the app compares its version with the site's `version.json`, a same-origin request) and show a **Reload** prompt. **Settings, Check for updates** does it on demand.
 

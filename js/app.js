@@ -249,8 +249,8 @@ bal:'<path d="M3 10l9-6 9 6"/><path d="M5 10v8M9 10v8M15 10v8M19 10v8"/><path d=
 up:'<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
 vault:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',plus:'<path d="M12 5v14M5 12h14"/>',dots:'<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>'};
 const svg=(p,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
-const TABS=[['overview','Overview',ICON.overview,'Summary'],['tx','Transactions',ICON.tx,'Money'],['cards','Cards',ICON.cards],['rec','Recurring',ICON.rec],['bal','Balance',ICON.bal,'Wealth'],['inv','Investments',ICON.inv],['ana','Analytics',ICON.ana],['vault','Vault',ICON.vault,'Private'],['up','Uploads',ICON.up],['settings','Settings',ICON.gear,'Preferences']];
-const HEAD={overview:['Overview','Your money at a glance'],bal:['Balance','What you hold today: bank balances, deposits and investments, in total and per person'],tx:['Transactions','Every payment, searchable and editable'],cards:['Cards','Spending and limits on your credit cards'],rec:['Recurring','Bills and subscriptions repeating every month'],inv:['Investments','What you own and what it is worth'],ana:['Analytics','Trends over time'],vault:['Vault','Card and ID numbers, kept masked'],up:['Uploads','Every file you have imported'],settings:['Settings','Family, accounts, security, backup and data tools']};
+const TABS=[['overview','Overview',ICON.overview,'Summary'],['tx','Transactions',ICON.tx,'Money'],['cards','Cards',ICON.cards],['rec','Recurring',ICON.rec],['bal','Balance',ICON.bal,'Wealth'],['inv','Investments',ICON.inv],['ana','Analytics',ICON.ana],['vault','Vault',ICON.vault,'Private'],['up','Uploads',ICON.up],['settings','Settings',ICON.gear,'Preferences'],['upd','Updates',ICON.up]];
+const HEAD={overview:['Overview','Your money at a glance'],bal:['Balance','What you hold today: bank balances, deposits and investments, in total and per person'],tx:['Transactions','Every payment, searchable and editable'],cards:['Cards','Spending and limits on your credit cards'],rec:['Recurring','Bills and subscriptions repeating every month'],inv:['Investments','What you own and what it is worth'],ana:['Analytics','Trends over time'],vault:['Vault','Card and ID numbers, kept masked'],up:['Uploads','Every file you have imported'],upd:['Updates','Install new versions from GitHub'],settings:['Settings','Family, accounts, security, backup and data tools']};
 function moveInd(){const tb=$('#tabs'),b=tb.querySelector('[aria-selected=true]'),i=tb.querySelector('.ind');if(b&&i){i.style.left=b.offsetLeft+'px';i.style.width=b.offsetWidth+'px'}}
 function renderChrome(){
   const tb=$('#tabs');
@@ -259,7 +259,7 @@ function renderChrome(){
   const dk=(k,l)=>`<button class="${S.view===k?'on':''}" data-act="view" data-v="${k}" aria-label="${l}">${svg(ICON[k],20)}<span>${l}</span></button>`;
   $('#dock').innerHTML=dk('overview','Home')+dk('tx','Activity')+`<button class="fab" data-act="fab" aria-label="Add or import">${svg(ICON.plus,24)}</button>`+dk('inv','Invest')+`<button data-act="more" class="${['cards','rec','up','vault','ana'].includes(S.view)?'on':''}" aria-label="More">${svg(ICON.dots,20)}<span>More</span></button>`;
   $('#lockbtn').hidden=!lockMeta;
-  const showR=!['inv','up','vault','bal','settings'].includes(S.view),showM=!['up','vault','bal','settings'].includes(S.view);
+  const showR=!['inv','up','vault','bal','settings','upd'].includes(S.view),showM=!['up','vault','bal','settings','upd'].includes(S.view);
   $('#bar').innerHTML=pageHead()+`<div class="mem" role="group" aria-label="Family member"><button class="pill" aria-pressed="${S.member==='all'}" data-act="member" data-v="all">Everyone</button>${S.members.map(m=>`<button class="pill" aria-pressed="${S.member===m.id}" data-act="member" data-v="${m.id}"><span class="dot" style="--c:${m.color}"></span>${esc(m.name)}</button>`).join('')}</div>
   <div class="grow"></div>${showR?`<div class="pills" role="group" aria-label="Period">${RANGES().filter(([k])=>PMAIN.includes(k)).map(([k,l])=>`<button class="pill" aria-pressed="${S.range===k}" data-act="range" data-v="${k}">${esc(l)}</button>`).join('')}</div><select class="fysel" id="fysel" aria-label="More periods"><option value="">${PMAIN.includes(S.range)?'More…':esc((RANGES().find(r=>r[0]===S.range)||[0,rangeName()])[1])}</option>${RANGES().filter(([k])=>!PMAIN.includes(k)).map(([k,l])=>`<option value="${k}" ${S.range===k?'selected':''}>${esc(l)}</option>`).join('')}${fyList().map(f=>`<option value="fy:${f}" ${S.range==='fy:'+f?'selected':''}>${fyLabel(f)}</option>`).join('')}</select>`:''}`}
 /* ---------- analytics ---------- */
@@ -449,7 +449,7 @@ function yoyChart(el,ft,fys){const W=Math.max(320,el.clientWidth),H=330,m={l:54,
   MN.forEach((n,j)=>{const rows=shown.map(f=>[f,ft[f].months[j]]).filter(r=>r[1]).sort((a,b)=>b[1].sp-a[1].sp).slice(0,8);s+=`<rect class="hit" data-x="${x(j)}" x="${x(j)-band/2}" y="${m.t}" width="${band}" height="${H-m.t-m.b}" fill="transparent" data-tip="${esc(`<b>${n}</b><br>`+rows.map(r=>`<span style="color:${col(list.indexOf(r[0]))}">●</span> ${fyLabel(r[0]).replace('FY ','')} ${compact(r[1].sp)}`).join('<br>'))}"/>`});
   el.innerHTML=s+'</svg>';const lg=document.getElementById('ch-yoy-l');if(lg)lg.innerHTML=list.slice().reverse().map(f=>`<button class="ychip ${hide[f]?'off':''}" data-act="yoytog" data-v="${f}"><i style="background:${col(list.indexOf(f))}"></i>${fyLabel(f).replace('FY ','')}</button>`).join('')}
 
-function render(){CH.length=0;renderChrome();const v={ana:anaView,overview,bal:balView,tx:txView,cards,inv,rec,up:uploadsView,vault:vaultView,settings:settingsView}[S.view];$('#main').innerHTML=(S.view==='overview'||S.view==='tx'||S.view==='bal'?bkBanner():'')+v();after()}
+function render(){CH.length=0;renderChrome();const v={ana:anaView,overview,bal:balView,tx:txView,cards,inv,rec,up:uploadsView,vault:vaultView,settings:settingsView,upd:updView}[S.view];$('#main').innerHTML=(S.view==='overview'||S.view==='tx'||S.view==='bal'?bkBanner():'')+v();after()}
 let lastSig='';
 function after(){
   const sig=S.view+'|'+S.range+'|'+S.member,fresh=sig!==lastSig;lastSig=sig;const m=$('#main');m.classList.toggle('noanim',!fresh);
@@ -908,6 +908,29 @@ function guideDlg(){modal(`<h2>Install &amp; hosting guide</h2><p class="sub">Po
 <p class="muted" style="margin:0">GitHub Pages, Netlify, Vercel, Cloudflare Pages, Docker with nginx, Caddy, or simply open <code>index.html</code> from your computer. Ready-made files are in the <code>deploy/</code> folder. A public GitHub Pages site is public to everyone, so use a passcode and import your own data only on a site you control.</p>
 <div class="note" style="margin-top:12px"><b>Your data never leaves the browser.</b> It lives on the device you import it on. Use Settings, Backup to move it to another device.</div>
 <div class="acts"><button class="btn primary" data-act="close">Done</button></div>`)}
+
+/* updates page: talks to update.php on your own server (same origin), which fetches releases from GitHub */
+const sget=k=>{try{return sessionStorage.getItem(k)||''}catch(e){return ''}},sput=(k,v)=>{try{sessionStorage.setItem(k,v)}catch(e){}};
+function updView(){const u=S._u||{},tab=S._ut||'update',web=location.protocol.startsWith('http');
+  const tabs=`<div class="seg" role="group" aria-label="Updates">${[['update','Update'],['log','What changed']].map(([k,l])=>`<button class="pill" aria-pressed="${tab===k}" data-act="updtab" data-v="${k}">${l}</button>`).join('')}</div>`;
+  const status=u.busy?'Working…':u.err?`<span class="out">${esc(u.err)}</span>`:u.done?`<b class="in">Updated to v${esc(u.done)}.</b> Reload to start using it.`:u.latest?(u.newer?`Version <b>v${esc(u.latest)}</b> is available.`:`You have the newest version (v${esc(u.installed)}).`):'Enter your update token and press Check now.';
+  const setup=u.nophp||!web?`<div class="scard" style="margin-top:14px"><div class="srow"><div class="st"><b>One-time setup on your site</b><span>${web?'This site has no updater yet.':'Updates only work on a site served over http(s).'} Upload <code>update.php</code> (from the <code>deploy/</code> folder or the release ZIP) next to <code>index.html</code>. Copy <code>update.config.example.php</code> to <code>update.config.php</code> and set a long random token and your GitHub repo. Then come back here.</span></div></div></div>`:'';
+  const body=tab==='log'?`<div class="scard"><div class="srow"><div class="st"><b>Release notes</b><span style="white-space:pre-wrap;display:block;margin-top:6px">${u.notes?esc(u.notes):'Press Check now on the Update tab to load the latest release notes from GitHub.'}</span></div></div></div>`:
+  `<div class="scard"><div class="srow"><div class="st"><b>Installed</b><span>v${VERSION}</span></div><div class="sc">${u.latest&&!u.newer&&!u.done?'<span class="tg ok">Up to date</span>':u.newer?'<span class="tg warn">Update available</span>':''}</div></div>
+  <div class="srow"><div class="st"><b>Update token</b><span>The token from <code>update.config.php</code> on your server. Kept for this browser session only.</span></div><div class="sc"><input class="in-t" id="utok" type="password" autocomplete="off" value="${esc(sget('pf.ut'))}" style="width:220px" aria-label="Update token"></div></div>
+  <div class="srow"><div class="st"><b>Check GitHub</b><span>${status}</span></div><div class="sc"><button class="btn sm" data-act="updcheck" ${u.busy?'disabled':''}>Check now</button>${u.newer&&!u.done?`<button class="btn sm primary" data-act="updinstall" ${u.busy?'disabled':''}>Install v${esc(u.latest)}</button>`:''}${u.done?'<button class="btn sm primary" data-act="reload">Reload</button>':''}</div></div></div>${setup}
+  <div class="note" style="margin-top:14px">Installing downloads the release from GitHub onto your server, checks its SHA-256, keeps a backup of the replaced files and never touches your data, which lives in this browser.</div>`;
+  return`<div class="setp"><div style="margin-bottom:14px">${tabs}</div>${body}</div>`}
+async function updCall(act){const tok=($('#utok')||{}).value||sget('pf.ut');if(!tok){S._u={...S._u,err:'Enter the update token first.'};return render()}
+  sput('pf.ut',tok);S._u={...S._u,busy:true,err:''};render();
+  try{const fd=new FormData();fd.append('api','1');fd.append('token',tok);fd.append('do',act==='install'?'install':'check');
+    const r=await fetch('update.php',{method:'POST',body:fd,cache:'no-store'});let j=null;try{j=await r.json()}catch(e){}
+    if(r.status===404||(!j&&r.status!==200)){S._u={nophp:r.status===404,err:r.status===404?'':'The updater is not set up correctly on your server ('+r.status+').'};return render()}
+    if(!j||j.error)S._u={err:(j&&j.error)||'Unexpected reply from the updater.'};
+    else if(act==='install')S._u={...S._u,busy:false,done:j.version,err:''};
+    else S._u={installed:j.installed,latest:j.latest,newer:j.newer,notes:j.notes};
+  }catch(e){S._u={err:'Could not reach the updater.'}}
+  render()}
 function settingsView(){
   const row=(t,d,c)=>`<div class="srow"><div class="st"><b>${t}</b>${d?`<span>${d}</span>`:''}</div><div class="sc">${c||''}</div></div>`;
   const sec=(t,rows)=>`<div class="ssec"><h3>${t}</h3><div class="scard">${rows}</div></div>`;
@@ -921,7 +944,7 @@ function settingsView(){
   ${sec('Security',row(lockMeta?'Passcode is on':'Passcode is off',lockMeta?'Data is encrypted on this device (AES-256-GCM, key from your passcode via PBKDF2, 600,000 rounds). The passcode is never stored.':'Your data is stored unencrypted in this browser. A passcode encrypts it and unlocks the Vault.',lockMeta?b('Change','chglock')+b('Lock now','locknow')+b('Turn off','offlock','danger'):b('Set a passcode','setlock','primary'))+(lockMeta?row('Auto-lock','Lock after being idle',sel('alk',[['1','1 min'],['5','5 min'],['15','15 min'],['30','30 min'],['0','Never']],String(autoLockMin),'data-change="autolock"')):''))}
   ${sec('Backup',row('Download a backup',bk.last?`Last backup ${bkDays()===0?'today':bkDays()+' days ago'}`:'No backup made yet',b('Download','bkdl','primary')+b('Copy','bkcopy')+b('Restore…','bkshow'))+row('Browser storage',persisted===true?'Protected: your browser will not clear this data automatically.':persisted===false?'Not protected: a browser can clear site data when it needs space. Keep regular backups.':'Status unknown in this browser.',`<span class="tg ${persisted?'ok':'warn'}">${persisted?'Protected':'Backups advised'}</span>`)+row('Backup reminder','How often to nudge you',`<select class="csel" data-change="bkevery" aria-label="Reminder interval">${[[7,'Every week'],[30,'Every month'],[90,'Every 3 months'],[0,'Never']].map(([v,l])=>`<option value="${v}" ${bk.every===v?'selected':''}>${l}</option>`).join('')}</select>`)+'<div id="bkarea"></div>')}
   ${sec('Data tools',row('Transfers between your accounts',`Same amount out of one account and into another within 3 days is treated as a transfer, not spending. ${xfCount()?`${xfCount()} matched so far.`:'None matched yet.'}`,b('Find transfers','xfind')+(xfCount()?b('Remove links','xfundo'):'')))}
-  ${sec('About',row('Version',`Portfolio v${VERSION}. Checks whether your site has a newer release than this page.`,b('Check for updates','chkupd'))+row('Install and hosting','cPanel, GitHub Pages and other hosts',b('Open guide','guide')))}
+  ${sec('About',row('Version',`Portfolio v${VERSION}. Install new releases from the Updates page.`,b('Open Updates','updpage','primary')+' '+b('Check this page','chkupd'))+row('Install and hosting','cPanel, GitHub Pages and other hosts',b('Open guide','guide')))}
   ${sec('Danger zone',row('Delete all my data','Removes everything from this browser. Download a backup first.',b('Delete everything','clear','danger','clr')))}</div>`}
 function settings(){closeModal();S.view='settings';render();window.scrollTo(0,0)}
 
@@ -932,7 +955,7 @@ const A={
  bksnooze(){bk.snooze=Date.now()+7*864e5;saveMeta();render()},
  xfind(){const n=matchTransfers();save();render();toast(n?`Matched ${n} transfer${n>1?'s':''}`:'No new transfers found');settings()},
  xfundo(){for(const t of S.tx.filter(t=>t.xf))unlinkXf(t);for(const t of S.tx)if(t.xn)delete t.xn;save();render();toast('Transfer links removed');settings()},
- guide(){guideDlg()},chkupd(){checkUpdate(true)},reload(){location.reload()},updx(){$("#upd")?.remove()},
+ updpage(){S.view='upd';render();window.scrollTo(0,0)},updcheck(){updCall('check')},updinstall(){updCall('install')},updtab(e){S._ut=e.dataset.v;render()},guide(){guideDlg()},chkupd(){checkUpdate(true)},reload(){location.reload()},updx(){$("#upd")?.remove()},
  anasub(e){S.ana=e.dataset.v;render()},streammode(e){S.stream=e.dataset.v;render()},calyear(e){S.calYear=e.dataset.v;render()},hmetric(e){S.hm=e.dataset.v;render()},yoytog(e){const f=e.dataset.v;(S._yoy||(S._yoy={}))[f]=!S._yoy[f];render()},
  view(e){S.view=e.dataset.v;if(S.view!=='tx'){}render();window.scrollTo(0,0)},
  member(e){S.member=e.dataset.v;render()},range(e){S.range=e.dataset.v;render()},
