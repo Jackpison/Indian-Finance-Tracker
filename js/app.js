@@ -537,13 +537,13 @@ function txFilterUI(){const accts=S.accts.filter(a=>S.tx.some(t=>t.acct===a.id))
   <div class="fg"><h4>Account</h4><div class="chips">${accts.map(a=>`<button class="fchip" aria-pressed="${S.faccts.includes(a.id)}" data-act="fchip" data-k="a" data-v="${a.id}">${esc(a.name)}</button>`).join('')}</div></div>
   ${n?`<button class="btn sm ghost" data-act="fclear">Clear all filters</button>`:''}</div></div></div>`}
 function txView(){if(!S.tx.length)return empty('No transactions yet.');
-  return`<div id="txf">${txFilterUI()}</div><div class="card" style="padding:6px 16px 14px"><div id="txrows"></div></div>`}
+  return`<div class="txsum" id="txsum"></div><div id="txf">${txFilterUI()}</div><div class="card" style="padding:6px 16px 14px"><div id="txrows"></div></div>`}
 function txFiltered(){const rg=getRange();const q=S.q.trim().toLowerCase();let a=within(base(),rg.from,rg.to);
   if(S.fcats.length)a=a.filter(t=>S.fcats.includes(t.cat));if(S.faccts.length)a=a.filter(t=>S.faccts.includes(t.acct));
   if(S.ftype==='out')a=a.filter(t=>t.amt<0);if(S.ftype==='in')a=a.filter(t=>t.amt>0);
   if(q)a=a.filter(t=>t.desc.toLowerCase().includes(q)||t.cat.toLowerCase().includes(q)||String(Math.abs(t.amt)).includes(q));
   const {k,dir}=S.sort;a.sort((x,y)=>k==='d'?(x.d<y.d?-1:x.d>y.d?1:0)*dir:(x.amt-y.amt)*dir);return a}
-function renderTxRows(){const el=$('#txrows');if(!el)return;const a=txFiltered();const arrow=k=>S.sort.k===k?(S.sort.dir<0?' ↓':' ↑'):'';
+function renderTxRows(){const el=$('#txrows');if(!el)return;const a=txFiltered();{const om=a.filter(t=>t.amt<0).reduce((x,t)=>x-t.amt,0),sm=$('#txsum');if(sm)sm.innerHTML=[['Transactions',a.length.toLocaleString('en-IN'),''],['Money in',money(a.filter(t=>t.amt>0).reduce((x,t)=>x+t.amt,0)),'in'],['Money out',money(om),'out'],['Net',(a.reduce((x,t)=>x+t.amt,0)<0?'−':'')+money(Math.abs(a.reduce((x,t)=>x+t.amt,0))),'']].map(([l,v,c])=>`<div class="card"><div class="sl">${l}</div><div class="sv ${c}">${v}</div></div>`).join('')}const arrow=k=>S.sort.k===k?(S.sort.dir<0?' ↓':' ↑'):'';
   el.innerHTML=`<div class="tx hd"><button data-act="sort" data-v="d">Date${arrow('d')}</button><span>Description</span><span>Category</span><button data-act="sort" data-v="a" style="text-align:right">Amount${arrow('a')}</button></div>`+
   (a.slice(0,S.limit).map((t,i)=>{const ac=acctOf(t.acct),mm=memOf(t.m),op=S.xo===t.id;return`<div class="txr${op?' open':''}" style="--i:${Math.min(i,14)}"><div class="tx" data-act="xrow" data-id="${t.id}" role="button" tabindex="0" aria-expanded="${op}"><span class="d">${fd(t.d)}</span><span class="ds"><b title="${esc(t.desc)}">${esc(t.desc)}</b><small>${esc(ac.name)} · ${esc(mm.name)}</small></span>
     <span class="c"><span class="tg" style="--c:${CC[t.cat]||'#999'}">${esc(t.cat)}</span></span><span class="a num ${t.amt>0?'in':''}">${t.amt>0?'+':'−'}${money(Math.abs(t.amt),2)}</span></div>
