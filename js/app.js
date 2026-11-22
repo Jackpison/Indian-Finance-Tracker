@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.0.1'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
+const VERSION='0.1.0'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -232,7 +232,7 @@ function buckets(rg,a){const to=rg.to<rg.mx?rg.to:rg.mx,from=rg.from>rg.mn?rg.fr
 function nice(v){if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v))),f=v/p;return(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p}
 function spark(v,col){if(v.length<2)return'<span></span>';const w=110,h=34,mx=Math.max(...v),mn=Math.min(...v),sp=(mx-mn)||1;
   const pts=v.map((x,i)=>[2+i*(w-4)/(v.length-1),h-4-(x-mn)/sp*(h-8)]);const l=pts.map(p=>p.map(n=>n.toFixed(1)).join(',')).join(' ');const e=pts[pts.length-1];
-  return`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polygon points="2,${h} ${l} ${w-2},${h}" fill="${col}" fill-opacity=".12"/><polyline points="${l}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${e[0]}" cy="${e[1]}" r="3" fill="${col}"/></svg>`}
+  return`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polygon points="2,${h} ${l} ${w-2},${h}" fill="${col}" fill-opacity=".14"/><polyline points="${l}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${e[0]}" cy="${e[1]}" r="3" fill="${col}"/></svg>`}
 function cashChart(el,B){const W=Math.max(300,el.clientWidth),H=W>700?340:270,m={l:50,r:8,t:12,b:28};
   const mx=Math.max(1,...B.map(b=>Math.max(b.inc,b.sp))),mnv=Math.min(0,...B.map(b=>b.net));const ymax=nice(mx),ymin=mnv<0?-nice(-mnv):0;
   const y=v=>m.t+(H-m.t-m.b)*(1-(v-ymin)/(ymax-ymin));const band=(W-m.l-m.r)/B.length,bw=Math.min(26,band*.3);let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Income versus spending by period">`;
@@ -522,7 +522,7 @@ function overview(){
   const days=Math.max(1,daysBetween(rg.from>rg.mn?rg.from:rg.mn,rg.to<rg.mx?rg.to:rg.mx)+1);
   const rate=c.inc>0?c.net/c.inc*100:0;const cats=byCat(cur),catTot=cats.reduce((a,x)=>a+x[1],0);
   const hv=S.hold.filter(inMember),worth=hv.reduce((a,h)=>a+h.value,0),invd=hv.reduce((a,h)=>a+h.invested,0);
-  const kpi=(l,v,d,sp,col,sub,x='')=>`<div class="card kpi s3 ${x}"><div class="lbl">${l}</div><div class="val num">${v}</div><div class="foot"><span>${d||`<span class="faint">${sub||''}</span>`}</span>${sp?spark(sp,col):''}</div></div>`;
+  const kpi=(l,v,d,sp,col,sub,x='')=>`<div class="card kpi s3 ${x}" style="--kc:${col||'var(--faint)'}"><div class="lbl"><i class="kd"></i>${l}</div><div class="val num">${v}</div><div class="foot"><span>${d||`<span class="faint">${sub||''}</span>`}</span>${sp?spark(sp,col):''}</div></div>`;
   const rtone=rate>=20?'good':rate>=5?'warn':'bad';
   const cardEl=`<div class="card s8"><h3>Money in vs out <span class="legend"><span><i style="background:var(--in)"></i>Income</span><span><i style="background:var(--out)"></i>Spending</span><span><i style="background:var(--accent)"></i>Net</span></span></h3><div id="cash"></div></div>`;
   const mems=S.members.map(m=>[m.name,sums(cur.filter(t=>t.m===m.id)).sp,m.color]).filter(x=>x[1]>0);const mt=mems.reduce((a,x)=>a+x[1],0);
@@ -532,7 +532,7 @@ function overview(){
     ${kpi('Net cash flow',`<span class="${c.net>=0?'in':'out'}">${tick(c.net)}</span>`,hasPrev?dChip(c.net,p.net,false)+' <span class="faint">vs prev.</span>':'',B.map(b=>b.net),'var(--accent)',rg.label,'beam')}
     ${kpi('Income',tick(c.inc),hasPrev?dChip(c.inc,p.inc,false)+' <span class="faint">vs prev.</span>':'',B.map(b=>b.inc),'var(--in)',rg.label)}
     ${kpi('Spending',tick(c.sp),hasPrev?dChip(c.sp,p.sp,true)+' <span class="faint">vs prev.</span>':'',B.map(b=>b.sp),'var(--out)',`≈ ${money(c.sp/days)} a day`)}
-    ${kpi('Savings rate',tick(rate,'p'),`<span class="chip ${rtone}">${rate>=20?'On track':rate>=5?'Could be higher':'Overspending'}</span>`,null,null)}
+    ${kpi('Savings rate',tick(rate,'p'),`<span class="chip ${rtone}">${rate>=20?'On track':rate>=5?'Could be higher':'Overspending'}</span><span class="faint">goal 20%</span><span class="meter ${rtone}"><i style="width:${clamp(rate/20*100)}%"></i></span>`,null,rate>=20?'var(--in)':rate>=5?'var(--warn)':'var(--out)')}
     ${cardEl}${healthCard(health(cur,c,rate,days))}
     <div class="card s4"><h3>Where it went</h3><div class="split" style="grid-template-columns:1fr"><div class="donut" data-donut></div></div>
       <div class="rows" style="margin-top:10px">${cats.slice(0,6).map(([n,v])=>`<button class="lrow" data-act="cat" data-v="${esc(n)}" data-seg="${esc(n)}"><span class="dot" style="--c:${CC[n]}"></span><span class="nm">${esc(n)}</span><span class="num">${money(v)}</span><span class="pc">${pc(v,catTot)}%</span></button>`).join('')||'<div class="muted">No spending in this period.</div>'}</div></div>
