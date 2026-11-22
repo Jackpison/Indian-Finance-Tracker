@@ -19,7 +19,7 @@
  */
 declare(strict_types=1);
 
-const ALLOWED = ['index.html', 'version.json', 'css/', 'js/', 'assets/', 'vendor/', '.htaccess'];
+const ALLOWED = ['index.html', 'version.json', 'sw.js', 'manifest.webmanifest', 'css/', 'js/', 'assets/', 'vendor/', '.htaccess'];
 const LOG_LIMIT = 4;
 
 header('X-Robots-Tag: noindex, nofollow');

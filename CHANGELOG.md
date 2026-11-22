@@ -4,6 +4,18 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-22
+### Added
+- Credit card payment due day (Settings, Accounts): the Cards page shows the next due date and warns within five days.
+- Review queue: Overview offers to sort payments without a category.
+- Split a payment into two categories (expand a transaction, Split).
+- Installable app with an offline shell (manifest and service worker; your data stays in IndexedDB).
+- Skip-to-content link and a focusable main region for keyboard and screen-reader users.
+- More tests (`tests/features.js`).
+
+### Fixed
+- Editing a card limit no longer re-renders the page while the field is focused.
+
 ## [0.3.0] - 2026-11-22
 ### Added
 - **Updates** page: check GitHub, read what changed and install a release in one click through `update.php` on your own site (verifies SHA-256, keeps a backup).

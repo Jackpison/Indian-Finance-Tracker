@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.3.0'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
+const VERSION='0.4.0'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -464,6 +464,7 @@ const tick=(v,f='m')=>`<span data-n="${v}" data-f="${f}">${TICK[f](v)}</span>`;
 function runTickers(root){root.querySelectorAll('[data-n]').forEach(el=>{const to=+el.dataset.n,f=TICK[el.dataset.f],t0=performance.now(),d=1100;const step=t=>{const k=Math.min(1,(t-t0)/d),e=k===1?1:1-Math.pow(2,-10*k);el.textContent=f(to*e);if(k<1)requestAnimationFrame(step)};el.textContent=f(0);requestAnimationFrame(step)})}
 function ring(p,size,sw,col){const r=(size-sw)/2,C=2*Math.PI*r,c=size/2;return`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="transform:rotate(-90deg)" aria-hidden="true"><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="var(--surface-2)" stroke-width="${sw}"/><circle class="ring-fg" cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-off="${C*(1-Math.max(0,Math.min(100,p))/100)}"/></svg>`}
 const clamp=v=>Math.max(0,Math.min(100,v));
+function nextDue(day,from=new Date()){const y=from.getFullYear(),m=from.getMonth(),mk=(yy,mm)=>new Date(yy,mm,Math.min(day,new Date(yy,mm+1,0).getDate()));let d=mk(y,m);const t0=new Date(y,m,from.getDate());if(d<t0)d=mk(y,m+1);return{date:d,days:Math.round((d-t0)/864e5)}}
 function upcoming(){const b=bounds();if(!b)return[];return recurring().filter(x=>x.sign<0&&x.next>=addDays(b.mx,-1)&&x.next<=addDays(b.mx,30)).sort((a,c)=>a.next<c.next?-1:1)}
 function marquee(up){if(!up.length)return'';const mx=bounds().mx,total=up.reduce((a,x)=>a+x.amt,0);
   const chip=x=>{const d=daysBetween(mx,x.next);return`<span class="bill"><i class="dot" style="--c:${CC[x.cat]}"></i>${esc(pretty(x.k))}<b class="num">${compact(x.amt)}</b><em>${d<=0?'due now':d===1?'tomorrow':'in '+d+' days'}</em></span>`};
@@ -488,7 +489,7 @@ function overview(){
   const stat=(l,v,sub,cls='')=>`<div class="card stat s3"><div class="sl">${l}</div><div class="sv num ${cls}">${v}</div><div class="ss">${sub}</div></div>`;
   const mems=S.members.map(m=>[m.name,sums(cur.filter(t=>t.m===m.id)).sp,m.color]).filter(x=>x[1]>0);const mt=mems.reduce((a,x)=>a+x[1],0);
   const multi=S.member==='all'&&mems.length>1,accRows=nw.accs.filter(a=>a.sub!=='PPF').map(a=>[a,curBal(a)]).filter(x=>x[1]!=null).sort((x,y)=>y[1]-x[1]).slice(0,5);
-  const h=onboard()+`<div class="grid">
+  const nOther=S.tx.filter(t=>t.cat==='Other'&&inMember(t)).length;const h=onboard()+(nOther?`<div class="card reviewq"><div><b>${nOther.toLocaleString('en-IN')} transaction${nOther>1?'s':''} without a category</b><span>Sorting them makes spending charts accurate. The app remembers your choice for similar payments.</span></div><button class="btn sm primary" data-act="cat" data-v="Other">Review</button></div>`:'')+`<div class="grid">
     ${(()=>{const mm={};for(const t of base())mm[t.d.slice(0,7)]=(mm[t.d.slice(0,7)]||0)+t.amt;let run=0;const ser=Object.keys(mm).sort().map(k=>run+=mm[k]).slice(-12);const [wi,wd]=money(nw.total,2).split('.');
       const line=ser.length>1?(()=>{const mx=Math.max(...ser),mn=Math.min(...ser),sp=mx-mn||1,pts=ser.map((v,i)=>[i/(ser.length-1)*300,56-(v-mn)/sp*48]);const d='M'+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join('L');return`<svg class="hspark" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="hsg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7BA7FF" stop-opacity=".35"/><stop offset="1" stop-color="#7BA7FF" stop-opacity="0"/></linearGradient></defs><path d="${d}L300,60L0,60Z" fill="url(#hsg)"/><path d="${d}" fill="none" stroke="#7BA7FF" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`})():'';
       return`<div class="card nwhero s6"><div class="sl">Net worth</div><div class="sv num">${wi}<span class="dim">.${wd||'00'}</span></div><div class="ss">${nw.known||nw.inv?`Bank ${compact(nw.cash)} · Investments ${compact(nw.inv)}`:'Import a statement to see your balances'}</div><div class="nwf"><span class="chip ${c.net>=0?'good':'bad'}">${c.net>=0?'Saved':'Overspent'} ${money(Math.abs(c.net))}</span><span>${rate.toFixed(0)}% of income · ${esc(rg.label)}</span></div>${line}</div>`})()}
@@ -538,7 +539,7 @@ function renderTxRows(){const el=$('#txrows');if(!el)return;const a=txFiltered()
     <span class="c"><span class="tg" style="--c:${CC[t.cat]||'#999'}">${esc(t.cat)}</span></span><span class="a num ${t.amt>0?'in':''}">${t.amt>0?'+':'−'}${money(Math.abs(t.amt),2)}</span></div>
     <div class="txd"><div><div class="txg"><div><small>Description</small><p>${esc(t.desc)}</p></div><div><small>Account</small><p>${esc(ac.name)}</p></div><div><small>Person</small><p>${esc(mm.name)}</p></div><div><small>Date</small><p>${fd(t.d)}</p></div>
     <div><small>Category</small><select class="csel" style="--c:${CC[t.cat]||'#999'}" data-change="cat" data-id="${t.id}" aria-label="Category">${CATS.map(([n])=>`<option ${n===t.cat?'selected':''}>${esc(n)}</option>`).join('')}</select></div>
-    <div class="txa"><button class="btn sm" data-act="cpy" data-id="${t.id}">Copy</button></div></div></div></div></div>`}).join('')||`<div class="empty">No transactions match.${txFilterN()||S.q?' <button class="btn sm" data-act="fclear">Clear filters</button>':''}</div>`)+
+    <div class="txa"><button class="btn sm" data-act="cpy" data-id="${t.id}">Copy</button><button class="btn sm" data-act="txsplit" data-id="${t.id}">Split</button></div></div></div></div></div>`}).join('')||`<div class="empty">No transactions match.${txFilterN()||S.q?' <button class="btn sm" data-act="fclear">Clear filters</button>':''}</div>`)+
   (a.length>S.limit?`<div style="text-align:center;padding-top:12px"><button class="btn sm" data-act="more">Show more (${a.length-S.limit} left)</button></div>`:'')+
   `<div class="muted" style="padding-top:12px;border-top:1px solid var(--line);margin-top:8px;font-size:13px">${a.length} transactions · in <b class="in num">${money(a.filter(t=>t.amt>0).reduce((x,t)=>x+t.amt,0))}</b> · out <b class="out num">${money(-a.filter(t=>t.amt<0).reduce((x,t)=>x+t.amt,0))}</b></div>`}
 function txRefresh(){S.limit=80;const f=$('#txf');if(f){const q=$('#q'),pos=q&&q.selectionStart,had=q&&document.activeElement===q;f.innerHTML=txFilterUI();const n=$('#q');if(had&&n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}}renderTxRows()}
@@ -556,6 +557,7 @@ function cards(){const cs=S.accts.filter(a=>a.type==='card'&&(S.member==='all'||
      return`<div class="card"><h3><span style="display:flex;gap:8px;align-items:center"><span class="dot" style="--c:${mm.color}"></span>${esc(c.name)}</span><span class="tag">${esc(mm.name)}</span></h3>
      <div class="num" style="font-size:26px;font-weight:550">${money(sp)}</div><div style="margin:4px 0 0">${spp?dChip(sp,spp,true)+' <span class="faint">vs prev.</span>':''}</div>
      ${c.limit?`<div style="margin-top:12px"><div class="prog" style="--c:${used/c.limit>.7?'var(--out)':'var(--accent)'}"><i style="width:${Math.min(100,pc(used,c.limit))}%"></i></div><div class="faint" style="font-size:12px;margin-top:5px">${money(used)} this month of ${money(c.limit)} limit · ${pc(used,c.limit)}% used</div></div>`:''}
+     ${c.due?(()=>{const nd=nextDue(c.due);return`<div class="duerow"><span>Payment due ${nd.date.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span><span class="tg ${nd.days<=5?'warn':''}">${nd.days===0?'Today':nd.days===1?'Tomorrow':'in '+nd.days+' days'}</span></div>`})():'<div class="duerow muted"><span>Set a due day in Settings to get a reminder here</span></div>'}
      <div class="mini">${cats.map(([n,v])=>`<div class="r"><span>${esc(n)}</span><div class="prog" style="--c:${CC[n]}"><i style="width:${v/mx*100}%"></i></div><span class="num" style="color:var(--fg)">${compact(v)}</span></div>`).join('')||'<span class="muted">No spending in this period.</span>'}</div>
      <div class="muted" style="margin-top:12px;font-size:12.5px">Top: ${merchants(cur).slice(0,3).map(m=>esc(pretty(m.k))).join(', ')||'—'}</div></div>`}).join('')}</div>`}
 
@@ -925,7 +927,7 @@ function settingsView(){
   const sec=(t,rows)=>`<div class="ssec"><h3>${t}</h3><div class="scard">${rows}</div></div>`;
   const b=(l,act,cls='',id='')=>`<button class="btn sm ${cls}" data-act="${act}"${id?` id="${id}"`:''}>${l}</button>`;
   const mem=S.members.map(m=>`<div class="srow"><div class="st"><b style="display:flex;align-items:center;gap:8px"><span class="dot" style="--c:${m.color}"></span><input class="in-t plain" value="${esc(m.name)}" data-change="mname" data-id="${m.id}" aria-label="Member name"></b></div><div class="sc">${S.members.length>1?b('Remove','mdel','danger'):''}</div></div>`).join('');
-  const acc=S.accts.length?S.accts.map(a=>`<div class="srow"><div class="st"><input class="in-t plain" value="${esc(a.name)}" data-change="aname" data-id="${a.id}" aria-label="Account name"><span>${a.bank?esc(a.bank)+' · ':''}${a.no?'••'+esc(a.no):''}</span></div><div class="sc">${sel('at'+a.id,[['bank','Bank'],['card','Card']],a.type,`data-change="atype" data-id="${a.id}"`)}${sel('am'+a.id,memberOpts(),a.member,`data-change="amem" data-id="${a.id}"`)}${a.type==='card'?`<input class="in-t lim" type="number" placeholder="Limit" value="${a.limit||''}" data-change="alim" data-id="${a.id}" aria-label="Card limit">`:''}</div></div>`).join(''):row('No accounts yet','They appear after you import your first file.');
+  const acc=S.accts.length?S.accts.map(a=>`<div class="srow"><div class="st"><input class="in-t plain" value="${esc(a.name)}" data-change="aname" data-id="${a.id}" aria-label="Account name"><span>${a.bank?esc(a.bank)+' · ':''}${a.no?'••'+esc(a.no):''}</span></div><div class="sc">${sel('at'+a.id,[['bank','Bank'],['card','Card']],a.type,`data-change="atype" data-id="${a.id}"`)}${sel('am'+a.id,memberOpts(),a.member,`data-change="amem" data-id="${a.id}"`)}${a.type==='card'?`<input class="in-t lim" type="number" placeholder="Limit" value="${a.limit||''}" data-change="alim" data-id="${a.id}" aria-label="Card limit"><input class="in-t lim" type="number" min="1" max="31" placeholder="Due day" value="${a.due||''}" data-change="adue" data-id="${a.id}" aria-label="Payment due day of month" title="Payment due day of month">`:''}</div></div>`).join(''):row('No accounts yet','They appear after you import your first file.');
   return`<div class="setp">
   ${sec('General',row('Currency','Used for every amount',sel('scur',['INR','USD','EUR','GBP','AED','SGD','CAD','AUD'],S.cur,'data-change="cur"')))}
   ${sec('Family',mem+`<div class="srow"><div class="st"><input class="in-t plain" id="newm" placeholder="Add a family member"></div><div class="sc">${b('Add','madd')}</div></div>`)}
@@ -944,6 +946,8 @@ const A={
  bksnooze(){bk.snooze=Date.now()+7*864e5;saveMeta();render()},
  xfind(){const n=matchTransfers();save();render();toast(n?`Matched ${n} transfer${n>1?'s':''}`:'No new transfers found');settings()},
  xfundo(){for(const t of S.tx.filter(t=>t.xf))unlinkXf(t);for(const t of S.tx)if(t.xn)delete t.xn;save();render();toast('Transfer links removed');settings()},
+ txsplit(e){const t=S.tx.find(x=>x.id===e.dataset.id);if(!t)return;if(t.xf)return toast('Unlink this transfer first');const o=CATS.filter(([n])=>n!==t.cat);modal(`<h2>Split payment</h2><p class="sub">${esc(t.desc)} · ${money(Math.abs(t.amt),2)}. Move part of it to another category; the rest stays here.</p><div class="frm"><div class="fld"><label for="spa">Amount to move</label><input id="spa" type="number" min="0.01" step="0.01" inputmode="decimal"></div><div class="fld"><label for="spc">Category</label><select id="spc">${o.map(([n])=>`<option>${esc(n)}</option>`).join('')}</select></div></div><div class="acts"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="spgo" data-id="${t.id}">Split</button></div>`)},
+ spgo(e){const t=S.tx.find(x=>x.id===e.dataset.id),v=Math.round(parseFloat($('#spa').value)*100)/100,tot=Math.abs(t.amt);if(!isFinite(v)||v<=0||v>=tot)return toast('Enter an amount smaller than '+money(tot,2));const sg=t.amt<0?-1:1;t.amt=Math.round((tot-v)*100)/100*sg;S.tx.push({...t,id:uid(),amt:v*sg,cat:$('#spc').value,desc:t.desc+' (split)',xf:undefined,xn:undefined});save();closeModal();render();toast('Payment split')},
  updpage(){S.view='upd';render();window.scrollTo(0,0)},updcheck(){updCall('check')},updinstall(){updCall('install')},updtab(e){S._ut=e.dataset.v;render()},guide(){guideDlg()},chkupd(){checkUpdate(true)},reload(){location.reload()},updx(){$("#upd")?.remove()},
  anasub(e){S.ana=e.dataset.v;render()},streammode(e){S.stream=e.dataset.v;render()},calyear(e){S.calYear=e.dataset.v;render()},hmetric(e){S.hm=e.dataset.v;render()},yoytog(e){const f=e.dataset.v;(S._yoy||(S._yoy={}))[f]=!S._yoy[f];render()},
  view(e){S.view=e.dataset.v;if(S.view!=='tx'){}render();window.scrollTo(0,0)},
@@ -995,7 +999,8 @@ const C={
  aname(el){const a=S.accts.find(x=>x.id===el.dataset.id);a.name=el.value.trim()||a.name;save();render()},
  atype(el){S.accts.find(x=>x.id===el.dataset.id).type=el.value;save();render()},
  amem(el){const a=S.accts.find(x=>x.id===el.dataset.id);a.member=el.value;S.tx.forEach(t=>{if(t.acct===a.id)t.m=el.value});save();render()},
- alim(el){S.accts.find(x=>x.id===el.dataset.id).limit=+el.value||undefined;save();render()},
+ adue(el){const v=Math.round(+el.value);S.accts.find(x=>x.id===el.dataset.id).due=v>=1&&v<=31?v:undefined;save()},
+ alim(el){S.accts.find(x=>x.id===el.dataset.id).limit=+el.value||undefined;save()},
  pwmeter(el){const n=strength(el.value),m=$('#pwm');m.style.width=(n*25)+'%';m.style.background=n>=3?'var(--in)':n===2?'var(--warn)':'var(--out)'},
  bkevery(el){bk.every=+el.value;saveMeta();toast(bk.every?`Backup reminder every ${bk.every} days`:'Backup reminders are off')},
  autolock(el){autoLockMin=+el.value;saveMeta();toast(autoLockMin?`Auto-lock after ${autoLockMin} min`:'Auto-lock is off')},
@@ -1055,6 +1060,6 @@ async function checkUpdate(manual){
     if(v&&v!==VERSION){showUpdate(v);if(manual)toast('Version '+v+' is ready')}else if(manual)toast('You are on the latest version (v'+VERSION+')')}
   catch(e){if(manual)toast('Could not check. Updates apply to sites served over http(s).')}}
 function showUpdate(v){if($('#upd'))return;const d=document.createElement('div');d.id='upd';d.setAttribute('role','status');d.innerHTML=`<span>Portfolio <b>v${esc(v)}</b> is available.</span><button class="btn sm primary" data-act="reload">Reload</button><button class="btn sm" data-act="updx" aria-label="Dismiss">Later</button>`;document.body.appendChild(d)}
-if(location.protocol.startsWith('http'))setTimeout(()=>checkUpdate(false),4000);
+if(location.protocol.startsWith('http')){setTimeout(()=>checkUpdate(false),4000);if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{})}
 boot();
 })();
