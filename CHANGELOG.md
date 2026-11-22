@@ -4,6 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-11-22
+### Fixed
+- **The Updates page can now check for new versions out of the box.** `update.php` and `update.config.example.php` now ship in the release ZIP, so extracting the ZIP is enough for **Check now** to work, with no config file and no password. Installing from the page still needs `update.config.php` with a long random password; without one, `update.php` refuses to install (also for an empty password).
+- The Updates page setup box now says this correctly.
+
 ## [0.5.2] - 2026-11-22
 ### Added
 - **Fix a bank name** (Settings, Data tools): rename a wrongly read bank (for example SBI to ICICI) on every account, deposit and PPF. Duplicate accounts and old deposits are then tidied automatically.

@@ -83,6 +83,12 @@ ok((await p.$eval('#imem',e=>e.options[e.selectedIndex].text))==='Asha','the own
 await p.selectOption('#imem','m2');await p.click('[data-act=stmtgo]');await p.waitForTimeout(500);
 ok(/already recorded under Asha/.test(await p.textContent('#toast')),'importing an existing account under someone else is refused with a clear message');
 await p.click('[data-act=impcancel]');await p.waitForTimeout(300);
+console.log('Updater');
+{const zip=fs.readFileSync(path.join(ROOT,'deploy/make-zip.sh'),'utf8'),php=fs.readFileSync(path.join(ROOT,'deploy/update.php'),'utf8');
+ ok(/update\.php/.test(zip)&&/update\.config\.example\.php/.test(zip),'the release ZIP carries update.php and its example config');
+ ok(/DEFAULT_REPO/.test(php),'checking works without a config file');
+ const gate=php.indexOf("if (!$configured) jout"),cmp=php.indexOf("hash_equals((string)$cfg['token']");
+ ok(gate>0&&cmp>gate,'installing without a configured password is refused before any password is compared');}
 console.log('Offline shell');
 for(const n of ['sw.js','manifest.webmanifest']){ok(fs.existsSync(path.join(ROOT,n)),n+' exists')}
 JSON.parse(fs.readFileSync(path.join(ROOT,'manifest.webmanifest')));ok(true,'manifest is valid JSON');

@@ -5,9 +5,9 @@
  * Installs the newest GitHub release over the files in this folder.
  *
  * Setup (once):
- *   1. Upload this file next to index.html.
- *   2. Create update.config.php next to it (copy update.config.example.php) and set a long random token.
- *   3. Open https://yourdomain.com/finance/update.php, enter the token, press Check, then Install.
+ *   1. It ships in the release ZIP next to index.html. That alone lets the in-app Updates page check for new versions.
+ *   2. To install from the app, copy update.config.example.php to update.config.php and set a long random password.
+ *   3. Open the app, Updates, Check now, then enter the password and Install.
  *
  * Safety:
  *   - Does nothing without the token (compared in constant time), POST only, HTTPS only.
@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 const ALLOWED = ['index.html', 'robots.txt', 'version.json', 'sw.js', 'manifest.webmanifest', 'css/', 'js/', 'assets/', 'vendor/', '.htaccess'];
 const LOG_LIMIT = 4;
+const DEFAULT_REPO = 'Jackpison/Indian-Finance-Tracker'; // used for checking when no update.config.php exists
 
 header('X-Robots-Tag: noindex, nofollow');
 header('Cache-Control: no-store');
@@ -39,9 +40,9 @@ function out(string $body, int $code = 200): never {
 }
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 
-if (!is_array($cfg) || empty($cfg['token']) || strlen((string)$cfg['token']) < 24 || empty($cfg['repo'])) {
-    out('<p>Not configured. Create <code>update.config.php</code> (see <code>update.config.example.php</code>) with a random token of 24+ characters and the GitHub repo.</p>', 503);
-}
+// Checking for a new version only reads public release info, so it works with no config. Installing needs the password.
+$configured = is_array($cfg) && !empty($cfg['token']) && strlen((string)$cfg['token']) >= 24 && !empty($cfg['repo']);
+if (!$configured) $cfg = ['token' => '', 'repo' => (is_array($cfg) && !empty($cfg['repo'])) ? (string)$cfg['repo'] : DEFAULT_REPO];
 $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
 if (!$https) out('<p>Use HTTPS.</p>', 400);
 if (!preg_match('~^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$~', (string)$cfg['repo'])) out('<p>Invalid repo in config.</p>', 500);
@@ -131,6 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['api'] ?? '') === '1') { //
             jout(['installed' => $cur, 'latest' => $rel['version'], 'newer' => version_compare($rel['version'], $cur, '>'), 'notes' => mb_substr($rel['notes'], 0, 6000)]);
         } catch (Throwable $e) { jout(['error' => $e->getMessage()], 500); }
     }
+    if (!$configured) jout(['error' => 'Installing needs a password. Copy update.config.example.php to update.config.php, set a long random password (24+ characters), then try again.'], 403);
     if (!hash_equals((string)$cfg['token'], (string)($_POST['token'] ?? ''))) jout(['error' => 'Wrong password.'], 403); // installing needs the password
     $lk = fopen($root . '/.update.lock', 'c');
     if (!$lk || !flock($lk, LOCK_EX | LOCK_NB)) jout(['error' => 'An update is already running.'], 409);
@@ -145,6 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['api'] ?? '') === '1') { //
     } catch (Throwable $e) { jout(['error' => $e->getMessage()], 500); }
 }
 
+if (!$configured) out('<p>Not configured. Create <code>update.config.php</code> (see <code>update.config.example.php</code>) with a random password of 24+ characters and the GitHub repo. The Updates page inside the app can still check for new versions without it.</p>', 503);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     out('<p>Current version: <b>' . h(current_version($root)) . '</b></p><form method="post"><p><label>Update token<br><input type="password" name="token" autocomplete="off" required style="width:100%"></label></p><button name="do" value="check">Check for updates</button></form>');
 }
