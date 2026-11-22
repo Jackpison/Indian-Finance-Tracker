@@ -39,4 +39,12 @@ const root = path.join(__dirname, '..');
   const bad = sv.rows.filter(x => /\d{9,}/.test(x.desc)); assert(!bad.length, 'long ids stripped: ' + bad.map(x => x.desc).join(' | '));
   assert(sv.rows.some(x => /freshmart/i.test(x.desc)), 'wrapped UPI narration attached');
   console.log('statement parser OK:', sv.rows.length, 'savings rows,', fds.length, 'FDs');
+  // Another bank's name inside a UPI narration (@sbipay, "SBI PAYMEN") must not decide which bank issued the statement.
+  assert.strictEqual(r.bank, 'ICICI', 'sample is detected as ICICI');
+  const upiFirst = pages.map((pg, i) => i === 0 ? [{ x: 27, y: 790, w: 220, s: 'UPI/shop@sbipay/Payment/SBI PAYMEN' }, ...pg] : pg);
+  assert.strictEqual(S.parse(upiFirst).bank, 'ICICI', 'a UPI narration that mentions SBI must not change the bank');
+  const noIcici = pages.map((pg, i) => i < 2 ? pg.map(t => ({ ...t, s: t.s.replace(/ICICI Bank/gi, 'Bank').replace(/ICICI/gi, 'I-C') })) : pg);
+  const hdr = noIcici.map((pg, i) => i === 0 ? [{ x: 27, y: 790, w: 220, s: 'UPI/shop@sbipay/Payment/SBI PAYMEN' }, { x: 27, y: 780, w: 120, s: 'IFSC: ICIC0001234' }, ...pg] : pg);
+  assert.strictEqual(S.parse(hdr).bank, 'ICICI', 'the IFSC code identifies the bank when the name is not printed');
+  console.log('bank detection OK');
 })().catch(e => { console.error(e); process.exit(1); });

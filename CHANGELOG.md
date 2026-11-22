@@ -3,7 +3,16 @@
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [0.5.2] - 2026-11-22
+### Added
+- **Fix a bank name** (Settings, Data tools): rename a wrongly read bank (for example SBI to ICICI) on every account, deposit and PPF. Duplicate accounts and old deposits are then tidied automatically.
+- Balance, Edit: change an account's **Owner** (its transactions move with it) and its **Bank**.
+
 ### Fixed
+- **Wrong bank on imported statements.** The bank was taken from the first bank name found in the first two pages, so a UPI narration such as `name@sbipay` or `SBI PAYMEN` could make an ICICI statement read as SBI. That produced "SBI" accounts and deposits, and because the current year read correctly as ICICI, the two never merged and old deposits stayed counted. The bank is now chosen by evidence: IFSC codes first, then names in the page header, and anything inside UPI narrations is ignored.
+- **Statement imports no longer guess the owner.** With Everyone selected the dialog used to pick the first person. It now preselects the owner of an account already on file, otherwise asks you to choose. Importing an account that is recorded under someone else is refused with a clear message instead of silently adding it to them.
+- Top bar kept wrapping the settings button onto a second line on wide screens.
 - The Updates page said `update.php` is in the release ZIP. It is not: get it, and `update.config.example.php`, from the `deploy/` folder of the GitHub repository.
 
 ## [0.5.1] - 2026-11-22

@@ -568,3 +568,6 @@ svg[aria-label=Breakdown]:hover{transform:perspective(760px) rotateX(22deg) scal
 @keyframes pulse{50%{opacity:.35;transform:scale(1.5)}}
 .noanim .lr,.noanim .tbl tbody tr,.noanim .stat .sv,.noanim .txsum .sv,.noanim .kpi .val,.noanim svg[aria-label=Breakdown]{animation:none}
 @media(prefers-reduced-motion:reduce){.prog>i,.tg.ok::before{animation:none}.stat:hover,.card.kpi:hover{transform:none}}
+
+/* top bar never wraps on wide screens: the title takes the free space and shortens */
+@media(min-width:1100px){.top{flex-wrap:nowrap}.top .grow{display:none}.ptitle{flex:1 1 0;min-width:0}.ptitle span{min-width:0;overflow:hidden;text-overflow:ellipsis}.top>*:not(.ptitle){flex:none}}

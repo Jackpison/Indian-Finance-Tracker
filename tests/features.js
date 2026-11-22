@@ -49,6 +49,40 @@ console.log('Cache busting');
 {const html=fs.readFileSync(path.join(ROOT,'index.html'),'utf8'),ver=JSON.parse(fs.readFileSync(path.join(ROOT,'version.json'))).version;
  for(const f of ['css/app.css','js/theme.js','js/statement.js','js/app.js'])ok(html.includes(f+'?v='+ver+'"'),f+' is loaded with ?v='+ver);
  ok(/FilesMatch "\\.\(html\|json\|js\|css\|webmanifest\)\$"/.test(fs.readFileSync(path.join(ROOT,'deploy/htaccess.txt'),'utf8')),'.htaccess revalidates JS and CSS on each load')}
+console.log('Wrong bank and owner after importing old statements (fictional family)');
+const mixAccts=[{id:'a1',name:'SBI Savings ••0872',type:'bank',member:'m1',bank:'SBI',no:'0872',bal:192367,balAsOf:'2024-03-30'},
+ {id:'a2',name:'ICICI Savings ••0872',type:'bank',member:'m2',bank:'ICICI',no:'0872',bal:86030,balAsOf:'2026-11-16'}];
+const mix=extra=>({format:'ift-backup-1',enc:false,data:{tx:[{id:'t1',d:'2024-03-01',desc:'OLD SHOP',amt:-100,acct:'a1',m:'m1'},{id:'t2',d:'2026-11-10',desc:'NEW SHOP',amt:-200,acct:'a2',m:'m2'}],
+ hold:[{id:'h1',name:'SBI FD ••4582',type:'FD / RD',m:'m1',invested:250000,value:252828,maturity:'2022-06-07',stm:true,bank:'SBI',asof:'2024-03-30'},
+  {id:'h2',name:'ICICI FD ••8605',type:'FD / RD',m:'m1',invested:110000,value:110000,maturity:'2026-12-05',stm:true,bank:'ICICI',asof:'2026-11-19'}],
+ uploads:[],vault:[],members:[{id:'m1',name:'Asha',color:'#3B5BFF'},{id:'m2',name:'Ravi',color:'#E0457B'}],accts:[...mixAccts,...extra],rules:{},cur:'INR',order:''}});
+const restoreBk=async o=>{await p.click('[data-act=settings]');await p.waitForSelector('.setp');await p.click('[data-act=bkshow]');await p.fill('#bktxt',JSON.stringify(o));await p.click('[data-act=bkgo]');await p.waitForTimeout(1000)};
+const sampleStmt=path.join(ROOT,'samples/icici-style-statement.pdf');
+await restoreBk(mix([]));
+await p.click('.mem .pill:has-text("Everyone")');
+await p.setInputFiles('#file',sampleStmt);await p.waitForSelector('#imem',{timeout:30000});
+ok((await p.$eval('#imem',e=>e.value))==='','with Everyone selected the import asks who owns it instead of guessing the first person');
+await p.click('[data-act=stmtgo]');await p.waitForTimeout(400);
+ok(/Choose who/.test(await p.textContent('#toast'))&&!!(await p.$('#imem')),'import is refused until a person is chosen');
+await p.click('[data-act=impcancel]');await p.waitForTimeout(400);
+await p.click('[data-act=settings]');await p.waitForSelector('.setp');
+await p.fill('#bkfrom','sbi');await p.fill('#bkto','icici');await p.click('[data-act=bkfix]');await p.waitForTimeout(500);
+await p.click('#tabs [data-v=bal]');await p.waitForSelector('.lr');
+ok(!(await p.textContent('#main')).includes('SBI'),'renaming the bank removes every SBI label, and the old SBI deposit is dropped as stale');
+await p.click('.lr:has(.tg.own:has-text("Ravi")) [data-act=setbal]');await p.waitForSelector('#sbm');await p.selectOption('#sbm','m1');await p.click('[data-act=sbsave]');await p.waitForTimeout(500);
+const accRows=await p.$$eval('.lr .ln',e=>e.map(x=>x.textContent).filter(t=>/Savings/.test(t)));
+ok(accRows.length===1,'same bank, number and owner merge into one account ('+accRows.join(' | ')+')');
+ok((await p.$$eval('.lr .tg.own',e=>e.map(x=>x.textContent.trim()))).every(n=>n==='Asha'),'the account moved to the chosen owner');
+await p.click('#tabs [data-v=tx]');await p.click('.bar .pill:has-text("All time")');await p.waitForTimeout(300);if(await p.$('[data-act=fclear]'))await p.click('[data-act=fclear]');await p.waitForTimeout(500);
+const owners=await p.$$eval('.txr .tg.own',e=>e.map(x=>x.textContent.trim()));
+ok((await p.$$('.txr')).length===2&&owners.every(n=>n==='Asha'),'both transactions are kept and owned by the chosen person after the merge');
+await restoreBk(mix([{id:'a3',name:'ICICI Savings ••2444',type:'bank',member:'m1',bank:'ICICI',no:'2444'}]));
+await p.click('.mem .pill:has-text("Everyone")');
+await p.setInputFiles('#file',sampleStmt);await p.waitForSelector('#imem',{timeout:30000});
+ok((await p.$eval('#imem',e=>e.options[e.selectedIndex].text))==='Asha','the owner of the account already on file is preselected');
+await p.selectOption('#imem','m2');await p.click('[data-act=stmtgo]');await p.waitForTimeout(500);
+ok(/already recorded under Asha/.test(await p.textContent('#toast')),'importing an existing account under someone else is refused with a clear message');
+await p.click('[data-act=impcancel]');await p.waitForTimeout(300);
 console.log('Offline shell');
 for(const n of ['sw.js','manifest.webmanifest']){ok(fs.existsSync(path.join(ROOT,n)),n+' exists')}
 JSON.parse(fs.readFileSync(path.join(ROOT,'manifest.webmanifest')));ok(true,'manifest is valid JSON');

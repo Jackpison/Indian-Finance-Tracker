@@ -91,11 +91,29 @@
     return bd < 40 ? best : null;
   }
 
+  // Which bank issued the statement. Other banks' names turn up inside UPI narrations (name@sbipay, "SBI PAYMEN"),
+  // so those are ignored; IFSC codes weigh most, then names near the top, then names anywhere else.
+  const IFSC = { ICIC: 'ICICI', SBIN: 'SBI', HDFC: 'HDFC', UTIB: 'AXIS', KKBK: 'KOTAK', YESB: 'YES BANK', IDFB: 'IDFC FIRST', BARB: 'BANK OF BARODA',
+    PUNB: 'PUNJAB NATIONAL', CNRB: 'CANARA', UBIN: 'UNION BANK', INDB: 'INDUSIND', FDRL: 'FEDERAL BANK', BKID: 'BANK OF INDIA', IBKL: 'IDBI',
+    SCBL: 'STANDARD CHARTERED', HSBC: 'HSBC', RATN: 'RBL', AUBL: 'AU SMALL FINANCE' };
+  function detectBank(lines) {
+    const norm = (t) => t.replace(/state bank of india/i, 'SBI').toUpperCase();
+    const plain = lines.map((t) => t.replace(/\S*@\S*/g, ' ')).filter((t) => !/\bUPI\//i.test(t));
+    const score = new Map(), order = [];
+    const add = (b, w) => { if (!score.has(b)) { score.set(b, 0); order.push(b); } score.set(b, score.get(b) + w); };
+    for (const m of plain.join('\n').matchAll(/\b([A-Z]{4})0[A-Z0-9]{6}\b/g)) if (IFSC[m[1]]) add(IFSC[m[1]], 10);
+    const re = new RegExp(BANKS.source, 'gi');
+    plain.forEach((t, i) => { for (const m of t.matchAll(re)) add(norm(m[0]), i < 12 ? 4 : 1); });
+    let best = '', top = 0;
+    for (const b of order) if (score.get(b) > top) { best = b; top = score.get(b); }
+    return best;
+  }
+
   function parse(pages) {
     const warnings = [];
     const all = pages.map((p, i) => ({ n: i + 1, lines: groupLines(p) }));
     const firstText = all.slice(0, 2).flatMap((p) => p.lines.map((l) => l.text)).join('\n');
-    const bank = (firstText.match(BANKS) || [''])[0].replace(/^SBI$/i, 'SBI').replace(/state bank of india/i, 'SBI').toUpperCase();
+    const bank = detectBank(firstText.split('\n'));
 
     // --- account summary and fixed deposits (usually on the first page) ---
     const typeByNumber = {}, summary = [], holdings = [];
