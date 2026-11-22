@@ -8,7 +8,7 @@ const TYPES={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
     r.writeHead(200,{'content-type':TYPES[path.extname(f)]||'application/octet-stream'});fs.createReadStream(f).pipe(r)});
   await new Promise(r=>srv.listen(0,'127.0.0.1',r));
   const base='http://127.0.0.1:'+srv.address().port;
-  const h=await launch(),p=h.page;
+  const h=await launch({serviceWorkers:'block'}),p=h.page; // the offline shell's service worker would bypass page.route
   const local=JSON.parse(fs.readFileSync(path.join(ROOT,'version.json'))).version;let remote=local;
   await p.route('**/version.json*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({version:remote})}));
   console.log('Update check');
@@ -27,5 +27,5 @@ const TYPES={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   ok(/9\.9\.9/.test(await p.textContent('.setp')),'Updates page offers the release from GitHub');
   await p.click('[data-act=updinstall]');await p.waitForSelector('text=Updated to v9.9.9');ok(true,'install reports success');
   await p.click('[data-act=updtab][data-v=log]');ok(/Test note/.test(await p.textContent('.setp')),'release notes shown');
-  srv.close();await done(h);
+  srv.close();h.errors=h.errors.filter(e=>!/Service Worker registration blocked/.test(e));await done(h);
 })().catch(e=>{console.error(e);process.exit(1)});
