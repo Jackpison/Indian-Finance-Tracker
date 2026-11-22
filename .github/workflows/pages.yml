@@ -30,7 +30,7 @@ jobs:
           cp -r index.html version.json css js assets vendor _site/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - id: deployment
