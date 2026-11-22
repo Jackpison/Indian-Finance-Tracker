@@ -66,7 +66,11 @@ const post = async (body) => { const r = await fetch(BASE + 'sync.php', { method
   ok(info.exists && info.rev === 1, 'first push stored revision 1');
   for (let k = 0; k < 40 && !(fs.existsSync(path.join(site, 'sync-data/blob.json')) && fs.statSync(path.join(site, 'sync-data/blob.json')).size > 1000); k++) await new Promise(r => setTimeout(r, 250));
   const stored = fs.readFileSync(path.join(site, 'sync-data/blob.json'), 'utf8');
-  ok(!/SWIGGY|SALARY|Asha|Ravi|₹/i.test(stored) && stored.length > 1000, 'the file on the server is ciphertext, none of the data is readable');
+  { // Search the decoded bytes, not the base64 text: a short word can appear in random base64 by chance.
+    const bl = JSON.parse(stored), raw = Buffer.from(bl.ct, 'base64'), words = ['SWIGGY', 'SALARY', 'Aarav', 'Meera', 'Anaya', 'HDFC', '"tx"', '"desc"'];
+    ok(raw.length > 1000 && !words.some(w => raw.includes(w)) && !words.some(w => Object.keys(bl).concat(Object.keys(bl.lock)).includes(w)), 'the file on the server is ciphertext, none of the data is readable');
+    ok(Object.keys(bl).sort().join() === 'ct,enc,format,iv,lock', 'the stored object has only ciphertext, iv and the key parameters');
+  }
   const meta = fs.readFileSync(path.join(site, 'sync-data/meta.json'), 'utf8');
   ok(!meta.includes(PASS) && /"hash":"[0-9a-f]{64}"/.test(meta), 'the server keeps only a hash of the token, never the passcode');
   ok(fs.existsSync(path.join(site, 'sync-data/.htaccess')), 'the data folder is closed to the web');

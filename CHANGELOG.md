@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-22
+### Fixed
+- The release build for 0.6.1 stopped on a flaw in one of its own tests (it searched the encrypted file's text for names, which random base64 can contain by chance). The test now checks the decoded bytes. There is no change to the app itself, so 0.6.1's changes are included here.
+
 ## [0.6.1] - 2026-11-22
 ### Fixed
 - **Install on the Updates page no longer ends in a dead-end error.** When the server has no update password yet, the page now generates a strong one in your browser and shows the exact `update.config.php` to paste on your server (with a Copy button), then Install works. Check now never needed a password. The very first jump from an older version still needs the release ZIP extracted by hand, or `update.config.php` created manually from `update.config.example.php`.
