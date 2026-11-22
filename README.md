@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.png" width="96" alt="Pocketbook logo"></p>
+
 # Pocketbook
 
 A private, single-page money dashboard for Indian families. Upload bank and credit card statements
