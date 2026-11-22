@@ -46,5 +46,8 @@ const root = path.join(__dirname, '..');
   const noIcici = pages.map((pg, i) => i < 2 ? pg.map(t => ({ ...t, s: t.s.replace(/ICICI Bank/gi, 'Bank').replace(/ICICI/gi, 'I-C') })) : pg);
   const hdr = noIcici.map((pg, i) => i === 0 ? [{ x: 27, y: 790, w: 220, s: 'UPI/shop@sbipay/Payment/SBI PAYMEN' }, { x: 27, y: 780, w: 120, s: 'IFSC: ICIC0001234' }, ...pg] : pg);
   assert.strictEqual(S.parse(hdr).bank, 'ICICI', 'the IFSC code identifies the bank when the name is not printed');
+  // Real statements carry other banks' IFSC codes and names inside NEFT/IMPS narrations. They must never outvote the header.
+  const noisy = pages.map((pg, i) => i < 2 ? [...pg, ...[1, 2, 3, 4, 5, 6].map(k => ({ x: 120, y: 60 + k * 9, w: 300, s: 'NEFT-HDFC0001234-ACME PAYMENTS HDFC BANK LTD ' + k }))] : pg);
+  assert.strictEqual(S.parse(noisy).bank, 'ICICI', 'counterparty IFSC codes and bank names in narrations do not decide the bank');
   console.log('bank detection OK');
 })().catch(e => { console.error(e); process.exit(1); });

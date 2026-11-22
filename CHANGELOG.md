@@ -4,6 +4,22 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-22
+### Security
+- **The passcode is now mandatory.** A new browser shows a "Create your passcode" screen before anything else; existing unlocked data is encrypted the moment you choose one (10+ characters). "Turn off passcode" is gone. If the saved data is encrypted but its passcode settings are missing, the app stops and changes nothing instead of overwriting.
+- **Encrypted sync to your own hosting** (Settings, Sync to your server). The browser encrypts everything (AES-256-GCM, key from your passcode) before it is sent, so `sync.php` on your server only ever holds ciphertext, readable only in the browser after the passcode. The server keeps a hash of a passcode-derived token (never the passcode), refuses wrong tokens and throttles guesses, keeps the last six versions, and closes its data folder to the web. A new browser can **Restore from your server** on the first screen. If another device saved newer data you are asked which copy to keep; nothing is overwritten silently. Changing the passcode re-keys the server copy. `sync.php` ships in the release ZIP and the updater may install it. Needs PHP and HTTPS (nginx/Docker hosts without PHP cannot use it).
+
+### Fixed
+- **Statements were read as the wrong bank** (an ICICI statement showing as HDFC): other banks' names and IFSC codes inside NEFT/IMPS narrations outvoted the header. The bank is now taken from the letterhead and the top of each page only. The import dialog also has a **Bank** field, prefilled and editable, so a wrong guess can be corrected before importing.
+- If the main saved copy goes missing, unlocking now restores the automatic copy and saves it again.
+
+### Changed
+- **Balance is now Portfolio** and sits right after Overview. Account and card management (rename, owner, type, limit, due day) moved there from Settings, under "Manage accounts and cards".
+- **Transactions has real pages** (Prev/Next, page count, 25/50/100/200 per page) instead of "Show more".
+- **Settings is tidier**: a section list on the left, grouped cards, wide rows laid out in two lines.
+- 3D charts are back to a subtler look: soft top-to-bottom gradient bars with a gentle shadow, a flat donut with soft depth and a short entrance.
+- Vault no longer asks you to set a passcode first (everything is already protected); it keeps masking numbers until you press Reveal.
+
 ## [0.5.3] - 2026-11-22
 ### Fixed
 - **The Updates page can now check for new versions out of the box.** `update.php` and `update.config.example.php` now ship in the release ZIP, so extracting the ZIP is enough for **Check now** to work, with no config file and no password. Installing from the page still needs `update.config.php` with a long random password; without one, `update.php` refuses to install (also for an empty password).

@@ -1,6 +1,6 @@
 /* End-to-end checks. Run: npm test */
 const fs=require('fs'),os=require('os'),path=require('path');
-const {launch,URL,ROOT,ok,done,csv}=require('./lib');
+const {launch,URL,ROOT,ok,done,csv,gate,PASS}=require('./lib');
 (async()=>{
 const h=await launch(),p=h.page;
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'pf-'));
@@ -67,8 +67,8 @@ await p.click('[data-act=impgo]');await p.waitForTimeout(600);
 ok(/matched 1 transfer/.test(await p.textContent('#toast')),'equal opposite amounts in two accounts are matched ('+(await p.textContent('#toast'))+')');
 await p.click('#tabs [data-v=tx]');await p.click('.bar .pill:has-text("All time")');await p.fill('#q','ZZQ');await p.waitForTimeout(500);
 ok((await catOf('WIDGETCO'))==='Transfers'&&(await catOf('INWARD'))==='Transfers','both sides are categorised as Transfers');
-await p.evaluate(()=>new Promise(r=>{const q=indexedDB.open('portfolio-db',1);q.onsuccess=()=>{const tx=q.result.transaction('kv','readwrite');tx.objectStore('kv').put({lock:null,autoLock:5,bk:{last:0,every:30,snooze:0,since:Date.now()-10*864e5}},'meta');tx.oncomplete=r}}));
-await p.reload();await p.waitForTimeout(1500);await p.click('#tabs [data-v=overview]');await p.waitForTimeout(500);
+await p.evaluate(()=>new Promise(r=>{const q=indexedDB.open('portfolio-db',1);q.onsuccess=()=>{const tx=q.result.transaction('kv','readwrite'),st=tx.objectStore('kv'),g=st.get('meta');g.onsuccess=()=>{st.put({...g.result,bk:{last:0,every:30,snooze:0,since:Date.now()-10*864e5}},'meta')};tx.oncomplete=r}}));
+await p.reload();await gate(p);await p.waitForTimeout(1500);await p.click('#tabs [data-v=overview]');await p.waitForTimeout(500);
 ok(!!(await p.$('#bkbn')),'backup reminder appears when no backup was made for a week');
 await p.click('#bkbn [data-act=bkdl]').catch(()=>{});await p.waitForTimeout(800);
 ok(!(await p.$('#bkbn')),'reminder goes away after downloading a backup');
@@ -98,7 +98,7 @@ console.log('Data survives reloads and other tabs');
 const readState=pg=>pg.evaluate(()=>new Promise(r=>{const q=indexedDB.open('portfolio-db',1);q.onsuccess=()=>{const g=q.result.transaction('kv').objectStore('kv').get('state');g.onsuccess=()=>r(g.result?{n:g.result.n,ts:g.result.ts}:null)}}));
 await p.waitForTimeout(800);const before=await readState(p);
 ok(before&&before.n>1000,'state is saved with a transaction count ('+(before&&before.n)+')');
-await p.reload();await p.waitForTimeout(1500);
+await p.reload();await gate(p);await p.waitForTimeout(1500);
 const after=await readState(p);ok(after&&after.n===before.n,'all transactions are still there after a reload');
 const ctx=p.context(),p2=await ctx.newPage();await p2.goto(URL);await p2.waitForTimeout(1200);
 await p.click('[data-act=add]');await p.fill('#tdesc','TABTEST ONE').catch(()=>{});
@@ -107,22 +107,21 @@ await p2.bringToFront();await p2.evaluate(()=>document.dispatchEvent(new Event('
 const s2=await readState(p);ok(s2&&s2.n===before.n,'a second tab does not alter saved data when idle');
 await p2.close();
 await p.evaluate(()=>new Promise(r=>{const q=indexedDB.open('portfolio-db',1);q.onsuccess=()=>{const t=q.result.transaction('kv','readwrite');t.objectStore('kv').delete('state');t.oncomplete=r}}));
-await p.reload();await p.waitForTimeout(1500);
-ok(/Recover your data/.test(await p.textContent('#modal')),'losing the main copy offers the automatic copy');
-await p.click('#rcv');await p.waitForTimeout(1200);
+await p.reload();await gate(p);await p.waitForTimeout(1500);
+ok(!(await p.isVisible('#lock')),'unlocking after the main copy was lost uses the automatic copy');
+await p.waitForTimeout(1200);
 const rec=await readState(p);ok(rec&&rec.n===before.n,'recovery restores every transaction ('+(rec&&rec.n)+')');
 
 console.log('Passcode + encryption');
-await p.click('[data-act=settings]');await p.waitForSelector('.setp');await p.click('[data-act=setlock]');
-await p.fill('#pw1','Correct-Horse-9!');await p.fill('#pw2','Correct-Horse-9!');await p.click('#secgo');
-await p.waitForSelector('#lockbtn:not([hidden])',{timeout:30000});
+ok(!(await p.$('[data-act=offlock]'))&&!(await p.$('[data-act=setlock]')),'there is no way to turn the passcode off');
+ok(await p.isVisible('#lockbtn'),'lock button is available');
 const readRaw=()=>p.evaluate(()=>new Promise(r=>{const q=indexedDB.open('portfolio-db',1);q.onsuccess=()=>{const g=q.result.transaction('kv').objectStore('kv').get('state');g.onsuccess=()=>r(JSON.stringify(g.result))}}));
 await p.waitForFunction(()=>true);let raw='';for(let i=0;i<40;i++){raw=await readRaw();if(raw.includes('"enc":true'))break;await p.waitForTimeout(500)}  /* encrypting a large state takes a moment */
 ok(raw.includes('"enc":true')&&!/SWIGGY|SALARY|GREENVIEW/i.test(raw),'stored state is encrypted, no plaintext');
 await p.reload();await p.waitForTimeout(1000);ok(await p.isVisible('#lock'),'locked after reload');
 ok((await p.textContent('#main')).trim()===''&&!/SWIGGY|SALARY|GREENVIEW|₹/i.test(await p.textContent('body')),'nothing from your data is on the page while locked');
 await p.fill('#lockpw','nope');await p.click('#lockgo');await p.waitForTimeout(1800);ok(await p.isVisible('#lock'),'wrong passcode rejected');
-await p.fill('#lockpw','Correct-Horse-9!');await p.click('#lockgo');await p.waitForTimeout(3000);ok(!(await p.isVisible('#lock')),'correct passcode unlocks');
+await p.fill('#lockpw',PASS);await p.click('#lockgo');await p.waitForTimeout(3000);ok(!(await p.isVisible('#lock')),'correct passcode unlocks');
 await p.click('#tabs [data-v=vault]');await p.waitForTimeout(400);
 await p.click('[data-act=vadd]');await p.fill('#vl',evil);await p.fill('#vv','1234');await p.click('[data-act=vsave]');await p.waitForTimeout(500);
 ok(!(await p.evaluate(()=>window.__xss))&&!(await p.$('img[src="x"]')),'hostile vault label is inert');

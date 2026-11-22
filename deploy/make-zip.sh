@@ -9,7 +9,7 @@ case "$OUT" in /*) ABS="$OUT";; *) ABS="$PWD/$OUT";; esac
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 cp -r index.html robots.txt version.json sw.js manifest.webmanifest css js assets vendor "$STAGE/"
-cp deploy/update.php deploy/update.config.example.php "$STAGE/"
+cp deploy/update.php deploy/sync.php deploy/update.config.example.php "$STAGE/"
 cp deploy/htaccess.txt "$STAGE/.htaccess"
 ( cd "$STAGE" && zip -qr "$ABS" . )
 sha256sum "$OUT" | tee "$OUT.sha256"

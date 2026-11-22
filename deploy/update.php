@@ -19,7 +19,7 @@
  */
 declare(strict_types=1);
 
-const ALLOWED = ['index.html', 'robots.txt', 'version.json', 'sw.js', 'manifest.webmanifest', 'css/', 'js/', 'assets/', 'vendor/', '.htaccess'];
+const ALLOWED = ['index.html', 'robots.txt', 'sync.php', 'version.json', 'sw.js', 'manifest.webmanifest', 'css/', 'js/', 'assets/', 'vendor/', '.htaccess'];
 const LOG_LIMIT = 4;
 const DEFAULT_REPO = 'Jackpison/Indian-Finance-Tracker'; // used for checking when no update.config.php exists
 

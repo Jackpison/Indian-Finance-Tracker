@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.5.3'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
+const VERSION='0.6.0'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -57,7 +57,7 @@ const MCOL=['#3B5BFF','#E0568F','#12936A','#F2994A','#9B6BFF','#19A7CE'];
 /* ---------- state ---------- */
 const KEY='pocketbook.v2'; /* storage key kept from the original name so saved data keeps loading */
 const S={tx:[],hold:[],uploads:[],vault:[],members:[{id:'me',name:'Me',color:MCOL[0]}],accts:[],rules:{},cur:'INR',order:'',member:'all',range:'3m',view:'overview',
-  q:'',fcats:[],faccts:[],ftype:'all',fp:false,xo:null,sort:{k:'d',dir:-1},limit:80,queue:[],imp:null};
+  q:'',fcats:[],faccts:[],ftype:'all',fp:false,xo:null,sort:{k:'d',dir:-1},limit:50,page:0,queue:[],imp:null};
 function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 /* ---------- storage: IndexedDB, optional AES-256-GCM passcode lock ---------- */
 const CAN_CRYPTO=!!(window.crypto&&crypto.subtle);
@@ -94,7 +94,7 @@ function repairData(){const r={acct:0,tx:0,fd:0};
   const grp=new Map();for(const h of S.hold)if(isStmHold(h)&&h.type==='FD / RD'&&h.asof){const k=h.m+'|'+(h.bank||'').toLowerCase(),g=grp.get(k);if(!g||h.asof>g)grp.set(k,h.asof)}
   const before=S.hold.length;S.hold=S.hold.filter(h=>!(isStmHold(h)&&h.type==='FD / RD'&&h.asof&&h.asof<grp.get(h.m+'|'+(h.bank||'').toLowerCase())));r.fd=before-S.hold.length;
   if(r.acct||r.tx||r.fd){matchTransfers();S._rep=r}return r}
-async function saveMeta(){await kvSet('meta',{lock:lockMeta,autoLock:autoLockMin,bk})}
+async function saveMeta(){await kvSet('meta',{lock:lockMeta,autoLock:autoLockMin,bk,sync:sy.on?{on:1,rev:sy.rev,last:sy.last,asalt:sy.asalt}:null})}
 function save(){S._rv=(S._rv||0)+1;if(!booted||frozen)return;clearTimeout(saveT);saveT=setTimeout(flush,250)}
 /* Saving is defensive: never overwrite newer data written by another tab, keep rolling automatic copies, and say so when a write fails. */
 let stateTs=0,frozen=false,saveFail=false,lastBak=0,persisted=null;
@@ -110,48 +110,101 @@ async function flush(){clearTimeout(saveT);saveT=null;if(!booted||frozen)return;
       await kvSet('state.prev',cur);lastBak=now;
       const d=await kvGet('state.day');if(!d||d.day!==day)await kvSet('state.day',{...cur,day})}
     const ts=Math.max(Date.now(),stateTs+1);rec.ts=ts;rec.n=n;
-    const ok=await kvSet('state',rec);if(ok)await kvSet('state.bak',rec);if(ok){stateTs=ts;if(saveFail){saveFail=false;render()}}else if(!saveFail){saveFail=true;render()}
+    const ok=await kvSet('state',rec);if(ok)await kvSet('state.bak',rec);if(ok){stateTs=ts;syncSoon();if(saveFail){saveFail=false;render()}}else if(!saveFail){saveFail=true;render()}
     return ok}).catch(e=>{console.error(e);if(!saveFail){saveFail=true;render()}});return savingP}
 addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flush()});addEventListener('pagehide',()=>{flush()});
 async function boot(){
   try{if(navigator.storage&&navigator.storage.persist)persisted=await navigator.storage.persist()}catch(e){}
-  const meta=(await kvGet('meta'))||{};lockMeta=meta.lock||null;autoLockMin=meta.autoLock??5;bk={...bk,...(meta.bk||{})};
+  const meta=(await kvGet('meta'))||{};lockMeta=meta.lock||null;if(meta.sync)Object.assign(sy,meta.sync);autoLockMin=meta.autoLock??5;bk={...bk,...(meta.bk||{})};
   let rec=await kvGet('state'),alt=null;
   if(!rec||recN(rec)===0){const b=await kvGet('state.bak'),pv=await kvGet('state.prev'),d=await kvGet('state.day');alt=[b,pv,d].filter(x=>x&&recN(x)>0).sort((x,y)=>(y.ts||0)-(x.ts||0))[0]||null}
-  if(lockMeta){pendingRec=alt&&!rec?alt:rec;stateTs=(rec&&rec.ts)||0;showLock();return}
+  if(lockMeta){usedAlt=!!(alt&&!rec);pendingRec=alt&&!rec?alt:rec;stateTs=(rec&&rec.ts)||0;showLock();return}
   stateTs=(rec&&rec.ts)||0;
   if(rec&&!rec.enc){try{applyState(JSON.parse(rec.json))}catch(e){console.error(e);frozen=true;booted=true;render();modal(`<h2>Saved data could not be read</h2><p class="sub">Your saved data is still on this device and was left untouched. Reload to try again, or restore a backup file.</p><div class="acts"><button class="btn primary" data-act="reload">Reload</button></div>`);return}}
-  booted=true;render();reportRepair(rec);
-  if(alt&&!alt.enc){recoverDialog(alt)}}
+  if(rec&&rec.enc){frozen=true;booted=true;modal(`<h2>Passcode settings are missing</h2><p class="sub">Your saved data is encrypted, but the passcode settings that unlock it were not found in this browser. Nothing was changed or deleted. Reload to try again, or restore a backup file.</p><div class="acts"><button class="btn primary" data-act="reload">Reload</button></div>`);return}
+  gateAlt=alt&&!alt.enc?alt:null;showGate(rec&&!rec.enc&&recN(rec)>0)}
 function reportRepair(rec){const r=S._rep;if(!r)return;delete S._rep;try{if(!lockMeta&&rec&&!rec.enc)kvSet('state.prerepair',rec)}catch(e){}save();
   const bits=[r.acct?`merged ${r.acct} duplicate account${r.acct>1?'s':''}`:'',r.tx?`removed ${r.tx} repeated transaction${r.tx>1?'s':''}`:'',r.fd?`dropped ${r.fd} closed deposit${r.fd>1?'s':''}`:''].filter(Boolean);toast('Tidied your data: '+bits.join(', '))}
 function recoverDialog(alt){const n=recN(alt),when=alt.ts?new Date(alt.ts).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'}):'earlier';
   modal(`<h2>Recover your data?</h2><p class="sub">The main copy is empty, but an automatic copy from <b>${esc(when)}</b> with <b>${n.toLocaleString('en-IN')} transactions</b> was found on this device.</p><div class="acts"><button class="btn" data-act="close">Start empty</button><button class="btn primary" id="rcv">Restore it</button></div>`);
   $('#rcv').onclick=()=>{try{applyState(JSON.parse(alt.json));save();closeModal();render();toast('Data restored from the automatic copy')}catch(e){toast('That copy could not be read')}}}
+let gateAlt=null,usedAlt=false;
+function showGate(hasData){const g=$('#gate');g.hidden=false;const im=$('.brand img');if(im)$('#gateimg').src=im.src;
+  $('#gatenote').textContent=hasData?'Your data on this device is not locked yet. Choose a passcode and it will be encrypted straight away.':'Everything you add is encrypted with this passcode, on this device, before it is stored.';setTimeout(()=>$('#gpw1').focus(),50)}
+async function gateGo(){const err=m=>{$('#gateerr').textContent=m};if(!CAN_CRYPTO)return err('Encryption needs an HTTPS connection (or localhost).');
+  const p1=$('#gpw1').value;if(p1.length<10)return err('Use at least 10 characters. A few words in a row work well.');if(p1!==$('#gpw2').value)return err('The two passcodes do not match.');
+  const b=$('#gatego');b.disabled=true;b.textContent='Securing…';await new Promise(r=>setTimeout(r,30));
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iter=600000,key=await deriveKey(p1,salt,iter);lockMeta={salt:b64(salt),iter,check:await encStr(key,'ift-ok')};lockKey=key;
+  $('#gate').hidden=true;$('#gpw1').value=$('#gpw2').value='';booted=true;await saveMeta();await flush();lastAct=Date.now();render();reportRepair(null);if(gateAlt){recoverDialog(gateAlt);gateAlt=null}}
+async function gateRestore(){const err=m=>{$('#gateerr').textContent=m};const pw=$('#gpw1').value;if(!pw)return err('Type the passcode you use on your other devices in the first box, then press this again.');
+  const b=$('#gatefetch');b.disabled=true;const was=b.textContent;b.textContent='Restoring…';
+  try{const info=await syncCall({a:'info'});if(!info.exists)throw new Error('Nothing is stored on this server yet.');
+    const tok=await syncToken(pw,info.asalt),j=await syncCall({a:'pull',token:tok}),bl=j.blob,key=await tryKey(pw,bl.lock);if(!key)throw new Error('Wrong passcode');
+    lockMeta={salt:bl.lock.salt,iter:bl.lock.iter,check:bl.lock.check};lockKey=key;applyState(JSON.parse(await decStr(key,bl)));
+    Object.assign(sy,{on:true,rev:j.rev,last:Date.now(),asalt:info.asalt,tok});syncPass=pw;
+    $('#gate').hidden=true;$('#gpw1').value=$('#gpw2').value='';booted=true;await saveMeta();sy.noSoon=true;try{await flush()}finally{sy.noSoon=false}lastAct=Date.now();render();toast('Restored from your server')}
+  catch(e){err(e.message);b.disabled=false;b.textContent=was}}
 function showLock(){const l=$('#lock');l.hidden=false;const im=$('.brand img');if(im)$('#lockimg').src=im.src;setTimeout(()=>$('#lockpw').focus(),50)}
 let lockFails=0,lockWait=0;
 async function doUnlock(){const pw=$('#lockpw').value;if(!pw||Date.now()<lockWait)return;const btn=$('#lockgo');btn.disabled=true;btn.textContent='Unlocking…';
   const key=await tryKey(pw,lockMeta);btn.disabled=false;btn.textContent='Unlock';
   if(!key){lockFails++;if(lockFails>=3)lockWait=Date.now()+Math.min(60,Math.pow(2,lockFails-2))*1000;const c=$('.lockcard');c.classList.remove('shake');void c.offsetWidth;c.classList.add('shake');$('#lockerr').textContent=lockFails>=3?'Wrong passcode. Please wait a few seconds before trying again.':'Wrong passcode. Try again.';$('#lockpw').select();return}
   try{applyState(pendingRec?JSON.parse(await decStr(key,pendingRec)):{})}catch(e){$('#lockerr').textContent='Could not read the saved data.';return}
-  lockKey=key;pendingRec=null;booted=true;$('#lock').hidden=true;$('#lockpw').value='';lastAct=Date.now();render()}
+  lockKey=key;pendingRec=null;if(sy.on)try{sy.tok=await syncToken(pw,sy.asalt);syncPass=pw}catch(e){}booted=true;$('#lock').hidden=true;$('#lockpw').value='';lastAct=Date.now();render();if(usedAlt){usedAlt=false;save();toast('Your main copy was missing, so the automatic copy was restored')}syncCheck()}
 let lastAct=Date.now();['pointerdown','keydown','wheel','touchstart'].forEach(ev=>addEventListener(ev,()=>{lastAct=Date.now()},{passive:true}));
 setInterval(()=>{if(lockMeta&&lockKey&&autoLockMin>0&&Date.now()-lastAct>autoLockMin*60000)lockNow()},15000);
 async function lockNow(){await flush();location.reload()}
 function strength(p){let n=0;if(p.length>=8)n++;if(p.length>=12)n++;if(/[a-z]/.test(p)&&/[A-Z]/.test(p))n++;if(/\d/.test(p))n++;if(/[^A-Za-z0-9]/.test(p))n++;return Math.min(4,n)}
-function secForm(mode){const cur=mode!=='set',nw=mode!=='off';
-  modal(`<h2>${mode==='set'?'Set a passcode':mode==='change'?'Change passcode':'Turn off passcode'}</h2><p class="sub">${mode==='off'?'Your data will be stored on this device without encryption.':'Your data is encrypted on this device with AES-256-GCM. The passcode is never stored and cannot be recovered, so keep a backup and remember it.'}</p>
+function secForm(mode){const cur=true,nw=true;
+  modal(`<h2>Change passcode</h2><p class="sub">Your data is encrypted with AES-256-GCM. The passcode is never stored and cannot be recovered, so keep a backup and remember it.</p>
   ${CAN_CRYPTO?'':'<p class="out">This page is not on a secure (HTTPS) connection, so the browser blocks encryption. Open it over HTTPS or localhost.</p>'}
   <div class="frm">${cur?'<div class="fld full"><label for="pwc">Current passcode</label><input id="pwc" type="password" autocomplete="current-password"></div>':''}
-  ${nw?`<div class="fld full"><label for="pw1">${mode==='set'?'Passcode':'New passcode'} (12+ characters recommended)</label><input id="pw1" type="password" autocomplete="new-password" data-change="pwmeter"><div class="meter" style="margin-top:8px"><i id="pwm"></i></div></div><div class="fld full"><label for="pw2">Repeat passcode</label><input id="pw2" type="password" autocomplete="new-password"></div>`:''}</div><p id="secerr" class="out" style="min-height:1.4em;margin:8px 0 0"></p>
-  <div class="acts"><button class="btn" data-act="close">Cancel</button><button class="btn primary" id="secgo" data-act="secgo" data-mode="${mode}">${mode==='off'?'Turn off':'Save passcode'}</button></div>`)}
+  ${nw?`<div class="fld full"><label for="pw1">New passcode (10+ characters)</label><input id="pw1" type="password" autocomplete="new-password" data-change="pwmeter"><div class="meter" style="margin-top:8px"><i id="pwm"></i></div></div><div class="fld full"><label for="pw2">Repeat passcode</label><input id="pw2" type="password" autocomplete="new-password"></div>`:''}</div><p id="secerr" class="out" style="min-height:1.4em;margin:8px 0 0"></p>
+  <div class="acts"><button class="btn" data-act="close">Cancel</button><button class="btn primary" id="secgo" data-act="secgo" data-mode="${mode}">Save passcode</button></div>`)}
 async function secGo(mode){const err=m=>{$('#secerr').textContent=m};if(!CAN_CRYPTO)return err('Encryption needs an HTTPS connection.');
-  if(mode!=='set'){const k=await tryKey($('#pwc').value,lockMeta);if(!k)return err('Current passcode is wrong.')}
-  let np='';if(mode!=='off'){np=$('#pw1').value;if(np.length<8)return err('Use at least 8 characters.');if(np!==$('#pw2').value)return err('The two passcodes do not match.')}
+  {const k=await tryKey($('#pwc').value,lockMeta);if(!k)return err('Current passcode is wrong.')}
+  const np=$('#pw1').value;if(np.length<10)return err('Use at least 10 characters.');if(np!==$('#pw2').value)return err('The two passcodes do not match.');const oldTok=sy.on?await syncToken($('#pwc').value,sy.asalt):null;
   const b=$('#secgo');b.disabled=true;b.textContent='Securing…';await new Promise(r=>setTimeout(r,30));
-  if(mode==='off'){lockMeta=null;lockKey=null}else{const salt=crypto.getRandomValues(new Uint8Array(16)),iter=600000,key=await deriveKey(np,salt,iter);lockMeta={salt:b64(salt),iter,check:await encStr(key,'ift-ok')};lockKey=key}
-  booted=true;await saveMeta();await flush();closeModal();render();toast(mode==='off'?'Passcode turned off':'Data is now encrypted on this device')}
+  {const salt=crypto.getRandomValues(new Uint8Array(16)),iter=600000,key=await deriveKey(np,salt,iter);lockMeta={salt:b64(salt),iter,check:await encStr(key,'ift-ok')};lockKey=key}
+  booted=true;await saveMeta();await flush();let note='Passcode changed';
+  if(sy.on){try{const nt=await syncToken(np,sy.asalt);await syncPush({oldTok,newTok:nt});sy.tok=nt}catch(e){note='Passcode changed here. Reconnect sync in Settings: '+e.message}}
+  closeModal();render();toast(note)}
 
+/* ---------- encrypted sync to your own server (sync.php) ----------
+   The server gets the same encrypted backup object a download would contain, plus a token derived from the passcode.
+   It cannot read the data. A push is refused if the server holds something this browser has not seen. */
+const sy={on:false,rev:0,last:0,asalt:'',tok:null,busy:false,err:'',t:null};
+const hex=buf=>[...new Uint8Array(buf)].map(x=>x.toString(16).padStart(2,'0')).join('');
+async function syncToken(pass,asalt){const km=await crypto.subtle.importKey('raw',TE.encode(pass),'PBKDF2',false,['deriveBits']);
+  const salt=TE.encode(asalt+'|sync-auth');return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:600000,hash:'SHA-256'},km,256))}
+async function syncCall(body){let r;try{r=await fetch('sync.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store'})}catch(e){throw new Error('Could not reach sync.php on your server')}
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!j)throw new Error(r.status===404?'sync.php is not on your server yet. Re-upload the latest release.':'The server did not answer properly (HTTP '+r.status+')');
+  if(!r.ok){const e=new Error(j.error||('HTTP '+r.status));e.status=r.status;e.j=j;throw e}return j}
+async function syncPush(o={}){if(!lockKey||!sy.tok&&!o.newTok)return;const empty=!S.tx.length&&!S.hold.length&&!S.vault.length&&!S.accts.length;if(empty&&sy.rev)return;
+  const blob=await backupObj();const j=await syncCall({a:'push',token:o.oldTok||sy.tok,newtoken:o.newTok||undefined,asalt:sy.asalt,base:sy.rev,blob,force:o.force?1:undefined});
+  sy.rev=j.rev;sy.last=Date.now();sy.err='';await saveMeta()}
+function syncSoon(){if(!sy.on||!sy.tok||frozen||sy.noSoon)return;clearTimeout(sy.t);sy.t=setTimeout(syncNow,4000)}
+async function syncCheck(){if(!sy.on||!sy.tok)return;try{const j=await syncCall({a:'info'});if(j.exists&&j.rev>sy.rev)syncConflict(j.rev);else syncSoon()}catch(e){sy.err=e.message}}
+async function syncNow(manual){if(!sy.on||!sy.tok||sy.busy||!booted||frozen)return;sy.busy=true;
+  try{sy.noSoon=true;try{await flush()}finally{sy.noSoon=false}await syncPush();if(manual)toast('Synced to your server')}
+  catch(e){if(e.status===409){sy.err='conflict';syncConflict(e.j.rev)}else{sy.err=e.message;if(manual)toast(e.message)}}
+  finally{sy.busy=false;if($('#syncst'))$('#syncst').innerHTML=syncStatus()}}
+function syncStatus(){if(!sy.on)return'<span class="tg warn">Off</span>';if(sy.err==='conflict')return'<span class="tg warn">Needs your choice</span>';if(sy.err)return`<span class="tg warn" title="${esc(sy.err)}">Problem</span>`;return`<span class="tg ok">On</span>`}
+function syncConflict(rev){modal(`<h2>Your server has newer data</h2><p class="sub">Another device saved changes to your server since this browser last synced (revision ${rev}). Nothing has been overwritten. Choose which copy to keep.</p><div class="acts"><button class="btn" data-act="synckeep">Keep this device's data</button><button class="btn primary" data-act="syncpull">Use the server's data</button></div>`)}
+async function syncPullApply(){const j=await syncCall({a:'pull',token:sy.tok}),b=j.blob;const k=await tryKey(syncPass,b.lock);if(!k)throw new Error('The server copy was made with a different passcode');
+  applyState(JSON.parse(await decStr(k,b)));S.member='all';sy.rev=j.rev;sy.last=Date.now();sy.err='';save();await saveMeta()}
+let syncPass='';
+async function syncConnect(){const pw=await askSecret('Connect sync','Enter your passcode to connect this browser to your server.');closeModal();if(pw==null)return;
+  const k=await tryKey(pw,lockMeta);if(!k)return toast('Wrong passcode');toast('Connecting…');
+  try{const info=await syncCall({a:'info'});syncPass=pw;
+    if(!info.exists){sy.asalt=b64(crypto.getRandomValues(new Uint8Array(18))).replace(/[+\/=]/g,'x');sy.tok=await syncToken(pw,sy.asalt);sy.on=true;sy.rev=0;await syncPush();toast('Sync is on. Your encrypted data is now on your server.')}
+    else{sy.asalt=info.asalt;sy.tok=await syncToken(pw,sy.asalt);sy.on=true;sy.rev=info.rev;await syncCall({a:'pull',token:sy.tok});
+      const has=S.tx.length||S.hold.length||S.accts.length;
+      if(!has){await syncPullApply();toast('Sync is on. Your data was restored from the server.')}
+      else{await saveMeta();modal(`<h2>Your server already has data</h2><p class="sub">It holds revision ${info.rev}. This browser also has data. Pick which to keep. The other copy is replaced, and your server keeps its last few versions.</p><div class="acts"><button class="btn" data-act="synckeep">Keep this device's data</button><button class="btn primary" data-act="syncpull">Use the server's data</button></div>`);render();return}}
+    await saveMeta()}catch(e){sy.on=false;sy.tok=null;toast(e.message)}render()}
+async function syncResolve(useServer){try{if(useServer){await syncPullApply();toast('Using the server\'s data')}else{const j=await syncCall({a:'info'});sy.rev=j.rev;await syncPush({force:1});toast('Your data replaced the server copy')}sy.err='';closeModal()}catch(e){toast(e.message)}render()}
 async function backupObj(){const data=JSON.parse(snapshot());
   if(lockMeta&&lockKey)return{format:'ift-backup-1',enc:true,lock:{salt:lockMeta.salt,iter:lockMeta.iter,check:lockMeta.check},...await encStr(lockKey,JSON.stringify(data))};
   return{format:'ift-backup-1',enc:false,data}}
@@ -166,7 +219,6 @@ const VK={'Credit card':0,'Debit card':0,'Bank account':0,'Demat account':0,'PAN
 function maskVal(v,kind){if(VK[kind])return v;const ch=[...String(v)],idx=ch.map((c,i)=>/[A-Za-z0-9]/.test(c)?i:-1).filter(i=>i>=0);const keep=new Set(idx.length>4?idx.slice(-4):[]);return ch.map((c,i)=>/[A-Za-z0-9]/.test(c)&&!keep.has(i)?'•':c).join('')}
 const REV={};
 function vaultView(){
-  if(!lockMeta)return`<div class="card empty"><p style="margin:0 0 6px"><b style="color:var(--fg)">Protect your Vault with a passcode first</b></p><p style="margin:0 0 14px;max-width:520px;margin-inline:auto">Card numbers, account numbers, PAN and similar details are stored encrypted on this device, and shown masked until you click to reveal them.</p><button class="btn primary" data-act="setlock">Set a passcode</button></div>`;
   const items=S.vault.filter(v=>S.member==='all'||v.m===S.member);
   const head=`<div class="sec" style="margin-top:0"><div><h2>Vault</h2><div class="muted">Last 4 characters stay visible. Click Reveal to see the rest, or Copy to copy the full value. Never store a CVV or PIN here.</div></div><button class="btn sm primary" data-act="vadd">+ Add item</button></div>`;
   if(!items.length)return head+`<div class="card empty"><p style="margin:0 0 12px"><b style="color:var(--fg)">Nothing saved yet.</b><br>Add cards, bank accounts, PAN, Aadhaar, demat, PRAN, policy numbers and UPI IDs for the whole family.</p><button class="btn primary" data-act="vadd">Add the first item</button></div>`;
@@ -269,8 +321,8 @@ bal:'<path d="M3 10l9-6 9 6"/><path d="M5 10v8M9 10v8M15 10v8M19 10v8"/><path d=
 up:'<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
 vault:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',plus:'<path d="M12 5v14M5 12h14"/>',dots:'<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>'};
 const svg=(p,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
-const TABS=[['overview','Overview',ICON.overview,'Summary'],['tx','Transactions',ICON.tx,'Money'],['cards','Cards',ICON.cards],['rec','Recurring',ICON.rec],['bal','Balance',ICON.bal,'Wealth'],['inv','Investments',ICON.inv],['ana','Analytics',ICON.ana],['vault','Vault',ICON.vault,'Private'],['up','Uploads',ICON.up],['settings','Settings',ICON.gear,'Preferences'],['upd','Updates',ICON.up]];
-const HEAD={overview:['Overview','Your money at a glance'],bal:['Balance','What you hold today: bank balances, deposits and investments, in total and per person'],tx:['Transactions','Every payment, searchable and editable'],cards:['Cards','Spending and limits on your credit cards'],rec:['Recurring','Bills and subscriptions repeating every month'],inv:['Investments','What you own and what it is worth'],ana:['Analytics','Trends over time'],vault:['Vault','Card and ID numbers, kept masked'],up:['Uploads','Every file you have imported'],upd:['Updates','Check GitHub for a new version and install it with your password'],settings:['Settings','Family, accounts, security, backup and data tools']};
+const TABS=[['overview','Overview',ICON.overview,'Summary'],['bal','Portfolio',ICON.bal],['tx','Transactions',ICON.tx,'Money'],['cards','Cards',ICON.cards],['rec','Recurring',ICON.rec],['inv','Investments',ICON.inv,'Wealth'],['ana','Analytics',ICON.ana],['vault','Vault',ICON.vault,'Private'],['up','Uploads',ICON.up],['settings','Settings',ICON.gear,'Preferences'],['upd','Updates',ICON.up]];
+const HEAD={overview:['Overview','Your money at a glance'],bal:['Portfolio','What you hold today: accounts, cards, deposits and investments, in total and per person'],tx:['Transactions','Every payment, searchable and editable'],cards:['Cards','Spending and limits on your credit cards'],rec:['Recurring','Bills and subscriptions repeating every month'],inv:['Investments','What you own and what it is worth'],ana:['Analytics','Trends over time'],vault:['Vault','Card and ID numbers, kept masked'],up:['Uploads','Every file you have imported'],upd:['Updates','Check GitHub for a new version and install it with your password'],settings:['Settings','Family, security, sync, backup and data tools']};
 function moveInd(){const tb=$('#tabs'),b=tb.querySelector('[aria-selected=true]'),i=tb.querySelector('.ind');if(b&&i){i.style.left=b.offsetLeft+'px';i.style.width=b.offsetWidth+'px'}}
 function renderChrome(){
   const tb=$('#tabs');
@@ -554,16 +606,16 @@ function txFiltered(){const rg=getRange();const q=S.q.trim().toLowerCase();let a
   if(S.ftype==='out')a=a.filter(t=>t.amt<0);if(S.ftype==='in')a=a.filter(t=>t.amt>0);
   if(q)a=a.filter(t=>t.desc.toLowerCase().includes(q)||t.cat.toLowerCase().includes(q)||String(Math.abs(t.amt)).includes(q));
   const {k,dir}=S.sort;a.sort((x,y)=>k==='d'?(x.d<y.d?-1:x.d>y.d?1:0)*dir:(x.amt-y.amt)*dir);return a}
-function renderTxRows(){const el=$('#txrows');if(!el)return;const a=txFiltered();{const om=a.filter(t=>t.amt<0).reduce((x,t)=>x-t.amt,0),sm=$('#txsum');if(sm)sm.innerHTML=[['Transactions',a.length.toLocaleString('en-IN'),''],['Money in',money(a.filter(t=>t.amt>0).reduce((x,t)=>x+t.amt,0)),'in'],['Money out',money(om),'out'],['Net',(a.reduce((x,t)=>x+t.amt,0)<0?'−':'')+money(Math.abs(a.reduce((x,t)=>x+t.amt,0))),'']].map(([l,v,c])=>`<div class="card"><div class="sl">${l}</div><div class="sv ${c}">${v}</div></div>`).join('')}const arrow=k=>S.sort.k===k?(S.sort.dir<0?' ↓':' ↑'):'';
+function renderTxRows(){const el=$('#txrows');if(!el)return;const a=txFiltered();const pages=Math.max(1,Math.ceil(a.length/S.limit));if(S.page>=pages)S.page=pages-1;if(S.page<0)S.page=0;const off=S.page*S.limit;{const om=a.filter(t=>t.amt<0).reduce((x,t)=>x-t.amt,0),sm=$('#txsum');if(sm)sm.innerHTML=[['Transactions',a.length.toLocaleString('en-IN'),''],['Money in',money(a.filter(t=>t.amt>0).reduce((x,t)=>x+t.amt,0)),'in'],['Money out',money(om),'out'],['Net',(a.reduce((x,t)=>x+t.amt,0)<0?'−':'')+money(Math.abs(a.reduce((x,t)=>x+t.amt,0))),'']].map(([l,v,c])=>`<div class="card"><div class="sl">${l}</div><div class="sv ${c}">${v}</div></div>`).join('')}const arrow=k=>S.sort.k===k?(S.sort.dir<0?' ↓':' ↑'):'';
   el.innerHTML=`<div class="tx hd"><button data-act="sort" data-v="d">Date${arrow('d')}</button><span>Description</span><span>Category</span><button data-act="sort" data-v="a" style="text-align:right">Amount${arrow('a')}</button></div>`+
-  (a.slice(0,S.limit).map((t,i)=>{const ac=acctOf(t.acct),mm=memOf(t.m),op=S.xo===t.id;return`<div class="txr${op?' open':''}" style="--i:${Math.min(i,14)}"><div class="tx" data-act="xrow" data-id="${t.id}" role="button" tabindex="0" aria-expanded="${op}"><span class="d">${fd(t.d)}</span><span class="ds"><b title="${esc(t.desc)}">${esc(t.desc)}</b><small>${esc(ac.name)} ${ownTag(t.m)}</small></span>
+  (a.slice(off,off+S.limit).map((t,i)=>{const ac=acctOf(t.acct),mm=memOf(t.m),op=S.xo===t.id;return`<div class="txr${op?' open':''}" style="--i:${Math.min(i,14)}"><div class="tx" data-act="xrow" data-id="${t.id}" role="button" tabindex="0" aria-expanded="${op}"><span class="d">${fd(t.d)}</span><span class="ds"><b title="${esc(t.desc)}">${esc(t.desc)}</b><small>${esc(ac.name)} ${ownTag(t.m)}</small></span>
     <span class="c"><span class="tg" style="--c:${CC[t.cat]||'#999'}">${esc(t.cat)}</span></span><span class="a num ${t.amt>0?'in':''}">${t.amt>0?'+':'−'}${money(Math.abs(t.amt),2)}</span></div>
     <div class="txd"><div><div class="txg"><div><small>Description</small><p>${esc(t.desc)}</p></div><div><small>Account</small><p>${esc(ac.name)}</p></div><div><small>Owner</small><p>${ownTag(t.m)}</p></div><div><small>Date</small><p>${fd(t.d)}</p></div>
     <div><small>Category</small><select class="csel" style="--c:${CC[t.cat]||'#999'}" data-change="cat" data-id="${t.id}" aria-label="Category">${CATS.map(([n])=>`<option ${n===t.cat?'selected':''}>${esc(n)}</option>`).join('')}</select></div>
     <div class="txa"><button class="btn sm" data-act="cpy" data-id="${t.id}">Copy</button><button class="btn sm" data-act="txsplit" data-id="${t.id}">Split</button></div></div></div></div></div>`}).join('')||`<div class="empty">No transactions match.${txFilterN()||S.q?' <button class="btn sm" data-act="fclear">Clear filters</button>':''}</div>`)+
-  (a.length>S.limit?`<div style="text-align:center;padding-top:12px"><button class="btn sm" data-act="more">Show more (${a.length-S.limit} left)</button></div>`:'')+
+  (a.length>S.limit?`<div class="pager"><span class="muted">${(off+1).toLocaleString('en-IN')}–${Math.min(off+S.limit,a.length).toLocaleString('en-IN')} of ${a.length.toLocaleString('en-IN')}</span><div class="pg"><button class="btn sm" data-act="pgprev" ${S.page<=0?'disabled':''} aria-label="Previous page">‹ Prev</button><span>Page ${S.page+1} of ${pages}</span><button class="btn sm" data-act="pgnext" ${S.page>=pages-1?'disabled':''} aria-label="Next page">Next ›</button></div><label class="muted">Per page <select class="csel" data-change="perpage" aria-label="Rows per page">${[25,50,100,200].map(n=>`<option ${n===S.limit?'selected':''}>${n}</option>`).join('')}</select></label></div>`:'')+
   `<div class="muted" style="padding-top:12px;border-top:1px solid var(--line);margin-top:8px;font-size:13px">${a.length} transactions · in <b class="in num">${money(a.filter(t=>t.amt>0).reduce((x,t)=>x+t.amt,0))}</b> · out <b class="out num">${money(-a.filter(t=>t.amt<0).reduce((x,t)=>x+t.amt,0))}</b></div>`}
-function txRefresh(){S.limit=80;const f=$('#txf');if(f){const q=$('#q'),pos=q&&q.selectionStart,had=q&&document.activeElement===q;f.innerHTML=txFilterUI();const n=$('#q');if(had&&n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}}renderTxRows()}
+function txRefresh(){S.page=0;const f=$('#txf');if(f){const q=$('#q'),pos=q&&q.selectionStart,had=q&&document.activeElement===q;f.innerHTML=txFilterUI();const n=$('#q');if(had&&n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}}renderTxRows()}
 
 /* cards */
 function cards(){const cs=S.accts.filter(a=>a.type==='card'&&(S.member==='all'||a.member===S.member));const rg=getRange();
@@ -830,7 +882,7 @@ function stmtDialog(){const i=S.imp,st=i.stmt;i.pick=i.pick||st.sections.map(()=
      <div style="font-size:12.5px;margin-top:4px" class="${good?'in':'out'}">${good?'✓ Every row matches the running balance'+(c.totalsMatch?' and the statement totals':''):`⚠ ${c.mismatched} row(s) do not match the running balance. Check the preview.`}</div>
      ${s.type==='PPF'?'<div class="faint" style="font-size:12.5px;margin-top:2px">Investment account: deposits count as transfers and interest as income, so nothing is counted twice.</div>':''}</div></label>`};
   modal(`<h2>Import ${esc(i.name)}</h2><p class="sub">${esc(st.bank||'Bank')} statement with ${st.sections.length} account${st.sections.length>1?'s':''}, read by column position in your browser. Nothing is uploaded.</p>
-  <div class="frm"><div class="fld"><label for="imem">Belongs to</label>${sel('imem',stmtOwnerOpts(),stmtOwner(st))}</div></div>
+  <div class="frm"><div class="fld"><label for="imem">Belongs to</label>${sel('imem',stmtOwnerOpts(),i.mem||stmtOwner(st))}</div><div class="fld"><label for="ibank">Bank <span class="faint">(read from the statement, change it if wrong)</span></label><input class="in-t" id="ibank" value="${esc(st.bank||'')}" data-change="stbank" placeholder="e.g. ICICI" autocomplete="off"></div></div>
   <div style="margin-top:12px">${st.sections.map(card).join('')}</div>
   ${holds.length?`<label class="card" style="padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;cursor:pointer"><input type="checkbox" data-change="sthold" ${i.hold?'checked':''} style="width:auto;margin-top:3px"><div><div style="font-weight:600">Update Investments</div><div class="muted" style="font-size:13px">${holds.filter(h=>h.type==='FD / RD').length} fixed deposits and ${holds.filter(h=>h.type==='PPF').length} PPF, worth ${money(holds.reduce((a,h)=>a+h.value,0))}. Existing entries with the same name are updated.</div></div></label>`:''}
   ${prior?`<div class="note" style="margin-top:12px"><b class="out">You already imported this exact file on ${new Date(prior.at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}.</b> Importing again will add nothing.</div>`:''}
@@ -866,9 +918,12 @@ function balView(){const nw=netWorth();
    <div class="s3">${stat('Card dues',money(Math.abs(nw.due)),nw.due?'amount you owe':'none recorded',nw.due?'out':'')}</div>
    <div class="card s12">${balMatrix()}</div>
    <div class="card s12"><div class="ch"><div><h3>Bank and card accounts</h3><div class="cs">Balance is the closing balance on your latest statement, plus anything imported after it.</div></div></div>${accs.length?accs.map(row).join(''):'<div class="muted" style="padding:14px 0">Import a statement to add accounts.</div>'}</div>
+   ${manageAccts()}
    <div class="card s12"><div class="ch"><div><h3>Fixed deposits</h3><div class="cs">${fds.length?`${fds.length} running · ${money(fdTot)} in total`:'None found in your statements'}</div></div><button class="btn sm link" data-act="view" data-v="inv">Open investments →</button></div>
     ${fds.map(h=>{const dl=h.maturity?daysBetween(today,h.maturity):null;return`<div class="lr"><div class="lm"><div class="ln">${esc(h.name)} ${h.rate?`<span class="tg ok">${h.rate}%</span>`:''}</div><div class="lsub">${h.maturity?`Matures ${fd(h.maturity)}${dl!=null?(dl<0?' · past maturity':` · in ${dl} days`):''}`:'No maturity date'}</div></div><div class="lv"><span class="num">${money(h.value)}</span></div></div>`}).join('')}</div>
   </div>`}
+function manageAccts(){const row=(t,d)=>`<div class="srow"><div class="st"><b>${t}</b>${d?`<span>${d}</span>`:''}</div></div>`;
+  return`<details class="card s12 mng"><summary><div><h3>Manage accounts and cards</h3><div class="cs">Rename, change owner or type, set a card limit and payment due day.</div></div></summary><div class="scard" style="margin-top:12px">${S.accts.length?S.accts.map(a=>`<div class="srow wide"><div class="st"><input class="in-t plain" value="${esc(a.name)}" data-change="aname" data-id="${a.id}" aria-label="Account name"><span>${a.bank?esc(a.bank)+' · ':''}${a.no?'••'+esc(a.no):''}</span></div><div class="sc">${sel('at'+a.id,[['bank','Bank'],['card','Card']],a.type,`data-change="atype" data-id="${a.id}"`)}${sel('am'+a.id,memberOpts(),a.member,`data-change="amem" data-id="${a.id}"`)}${a.type==='card'?`<input class="in-t lim" type="number" placeholder="Limit" value="${a.limit||''}" data-change="alim" data-id="${a.id}" aria-label="Card limit"><input class="in-t lim" type="number" min="1" max="31" placeholder="Due day" value="${a.due||''}" data-change="adue" data-id="${a.id}" aria-label="Payment due day of month" title="Payment due day of month">`:''}</div></div>`).join(''):row('No accounts yet','They appear after you import your first file.')}</div></details>`}
 function balMatrix(){const ms=S.members,all=a=>a;
   const bankOf=m=>S.accts.filter(a=>a.member===m&&a.type!=='card'&&a.sub!=='PPF'&&!a.closed).reduce((x,a)=>x+(curBal(a)||0),0),dueOf=m=>S.accts.filter(a=>a.member===m&&a.type==='card'&&!a.closed).reduce((x,a)=>x+Math.min(0,curBal(a)||0),0),
     hOf=(m,t)=>S.hold.filter(h=>h.m===m&&h.type===t).reduce((x,h)=>x+h.value,0);
@@ -952,20 +1007,20 @@ async function updCall(act){const tok=act==='install'?(($('#utok')||{}).value||s
   }catch(e){S._u={err:'Could not reach the updater.'}}
   render()}
 function settingsView(){
-  const row=(t,d,c)=>`<div class="srow"><div class="st"><b>${t}</b>${d?`<span>${d}</span>`:''}</div><div class="sc">${c||''}</div></div>`;
-  const sec=(t,rows)=>`<div class="ssec"><h3>${t}</h3><div class="scard">${rows}</div></div>`;
+  const row=(t,d,c,w)=>`<div class="srow${w?' wide':''}"><div class="st"><b>${t}</b>${d?`<span>${d}</span>`:''}</div><div class="sc">${c||''}</div></div>`;
+  const sec=(t,rows,d)=>`<section class="ssec" id="s-${t.toLowerCase().replace(/[^a-z]+/g,'')}"><h3>${t}</h3>${d?`<p class="sdesc">${d}</p>`:''}<div class="scard">${rows}</div></section>`;
   const b=(l,act,cls='',id='')=>`<button class="btn sm ${cls}" data-act="${act}"${id?` id="${id}"`:''}>${l}</button>`;
   const mem=S.members.map(m=>`<div class="srow"><div class="st"><b style="display:flex;align-items:center;gap:8px"><span class="dot" style="--c:${m.color}"></span><input class="in-t plain" value="${esc(m.name)}" data-change="mname" data-id="${m.id}" aria-label="Member name"></b></div><div class="sc">${S.members.length>1?b('Remove','mdel','danger'):''}</div></div>`).join('');
-  const acc=S.accts.length?S.accts.map(a=>`<div class="srow"><div class="st"><input class="in-t plain" value="${esc(a.name)}" data-change="aname" data-id="${a.id}" aria-label="Account name"><span>${a.bank?esc(a.bank)+' · ':''}${a.no?'••'+esc(a.no):''}</span></div><div class="sc">${sel('at'+a.id,[['bank','Bank'],['card','Card']],a.type,`data-change="atype" data-id="${a.id}"`)}${sel('am'+a.id,memberOpts(),a.member,`data-change="amem" data-id="${a.id}"`)}${a.type==='card'?`<input class="in-t lim" type="number" placeholder="Limit" value="${a.limit||''}" data-change="alim" data-id="${a.id}" aria-label="Card limit"><input class="in-t lim" type="number" min="1" max="31" placeholder="Due day" value="${a.due||''}" data-change="adue" data-id="${a.id}" aria-label="Payment due day of month" title="Payment due day of month">`:''}</div></div>`).join(''):row('No accounts yet','They appear after you import your first file.');
-  return`<div class="setp">
+  const nav=[['general','General'],['family','Family'],['security','Security'],['backup','Backup'],['data','Data tools'],['about','About'],['danger','Danger zone']];
+  return`<div class="setl"><nav class="snav" aria-label="Settings sections">${nav.map(([i,l])=>`<button data-act="sgo" data-v="s-${i==='accounts'?'accountsandcards':i==='data'?'datatools':i==='danger'?'dangerzone':i}">${l}</button>`).join('')}</nav><div class="setp">
   ${sec('General',row('Currency','Used for every amount',sel('scur',['INR','USD','EUR','GBP','AED','SGD','CAD','AUD'],S.cur,'data-change="cur"')))}
   ${sec('Family',mem+`<div class="srow"><div class="st"><input class="in-t plain" id="newm" placeholder="Add a family member"></div><div class="sc">${b('Add','madd')}</div></div>`)}
-  ${sec('Accounts and cards',acc)}
-  ${sec('Security',row(lockMeta?'Passcode is on':'Passcode is off',lockMeta?'Data is encrypted on this device (AES-256-GCM, key from your passcode via PBKDF2, 600,000 rounds). The passcode is never stored.':'Your data is stored unencrypted in this browser. A passcode encrypts it and unlocks the Vault.',lockMeta?b('Change','chglock')+b('Lock now','locknow')+b('Turn off','offlock','danger'):b('Set a passcode','setlock','primary'))+(lockMeta?row('Auto-lock','Lock after being idle',sel('alk',[['1','1 min'],['5','5 min'],['15','15 min'],['30','30 min'],['0','Never']],String(autoLockMin),'data-change="autolock"')):''))}
+  ${sec('Security',row('Passcode','Everything is encrypted on this device with AES-256-GCM, with a key made from your passcode (PBKDF2, 600,000 rounds). The passcode is never stored and cannot be recovered, so keep a backup.',b('Change','chglock')+b('Lock now','locknow'),1)+row('Auto-lock','Lock after being idle',sel('alk',[['1','1 min'],['5','5 min'],['15','15 min'],['30','30 min'],['0','Never']],String(autoLockMin),'data-change="autolock"')))}
+  ${sec('Sync to your server',row('Encrypted copy on your own hosting','Your data is encrypted in this browser before it is sent, so the server only ever holds unreadable ciphertext. It is readable only here, after you enter your passcode. Needs sync.php next to index.html, which comes in the release ZIP.',`<span id="syncst">${syncStatus()}</span>`+(sy.on?b('Sync now','syncnow','primary')+b('Turn off','syncoff'):b('Connect','syncconnect','primary')),1)+(sy.on?row('Last synced',sy.last?new Date(sy.last).toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'})+' · revision '+sy.rev:'Not yet','',0):''),'Open the app on another device, create or restore with the same passcode, and the data follows you.')}
   ${sec('Backup',row('Download a backup',bk.last?`Last backup ${bkDays()===0?'today':bkDays()+' days ago'}`:'No backup made yet',b('Download','bkdl','primary')+b('Copy','bkcopy')+b('Restore…','bkshow'))+row('Browser storage',persisted===true?'Protected: your browser will not clear this data automatically.':persisted===false?'Not protected: a browser can clear site data when it needs space. Keep regular backups.':'Status unknown in this browser.',`<span class="tg ${persisted?'ok':'warn'}">${persisted?'Protected':'Backups advised'}</span>`)+row('Backup reminder','How often to nudge you',`<select class="csel" data-change="bkevery" aria-label="Reminder interval">${[[7,'Every week'],[30,'Every month'],[90,'Every 3 months'],[0,'Never']].map(([v,l])=>`<option value="${v}" ${bk.every===v?'selected':''}>${l}</option>`).join('')}</select>`)+'<div id="bkarea"></div>')}
-  ${sec('Data tools',row('Fix a bank name','A statement can be read with the wrong bank (for example SBI instead of ICICI). Rename it on every account, deposit and PPF. Duplicates and old deposits are then tidied.',`<input class="in-t" id="bkfrom" placeholder="Wrong, e.g. SBI" style="width:130px" aria-label="Wrong bank name"><input class="in-t" id="bkto" placeholder="Right, e.g. ICICI" style="width:130px" aria-label="Right bank name">${b('Rename','bkfix')}`)+row('Transfers between your accounts',`Same amount out of one account and into another within 3 days is treated as a transfer, not spending. ${xfCount()?`${xfCount()} matched so far.`:'None matched yet.'}`,b('Find transfers','xfind')+(xfCount()?b('Remove links','xfundo'):'')))}
+  ${sec('Data tools',row('Fix a bank name','A statement can be read with the wrong bank (for example SBI instead of ICICI). Rename it on every account, deposit and PPF. Duplicates and old deposits are then tidied.',`<input class="in-t" id="bkfrom" placeholder="Wrong, e.g. SBI" style="width:130px" aria-label="Wrong bank name"><input class="in-t" id="bkto" placeholder="Right, e.g. ICICI" style="width:130px" aria-label="Right bank name">${b('Rename','bkfix')}`,1)+row('Transfers between your accounts',`Same amount out of one account and into another within 3 days is treated as a transfer, not spending. ${xfCount()?`${xfCount()} matched so far.`:'None matched yet.'}`,b('Find transfers','xfind')+(xfCount()?b('Remove links','xfundo'):'')))}
   ${sec('About',row('Version',`Portfolio v${VERSION}. Install new releases from the Updates page.`,b('Open Updates','updpage','primary')+' '+b('Check this page','chkupd'))+row('Install and hosting','cPanel, GitHub Pages and other hosts',b('Open guide','guide')))}
-  ${sec('Danger zone',row('Delete all my data','Removes everything from this browser. Download a backup first.',b('Delete everything','clear','danger','clr')))}</div>`}
+  ${sec('Danger zone',row('Delete all my data','Removes everything from this browser. Download a backup first.',b('Delete everything','clear','danger','clr')))}</div></div>`}
 function settings(){closeModal();S.view='settings';render();window.scrollTo(0,0)}
 
 /* ---------- events ---------- */
@@ -989,7 +1044,7 @@ const A={
  xrow(e){const r=e.closest('.txr');if(!r)return;const o=!r.classList.contains('open');document.querySelectorAll('.txr.open').forEach(x=>{x.classList.remove('open');x.firstElementChild.setAttribute('aria-expanded','false')});if(o){r.classList.add('open');e.setAttribute('aria-expanded','true')}S.xo=o?e.dataset.id:null},
  fpanel(e){S.fp=!S.fp;const p=$('#fpan');if(p)p.classList.toggle('open',S.fp);e.setAttribute('aria-expanded',String(S.fp))},
  fchip(e){const l=e.dataset.k==='c'?S.fcats:S.faccts,v=e.dataset.v,i=l.indexOf(v);i<0?l.push(v):l.splice(i,1);txRefresh()},
- ftype(e){S.ftype=e.dataset.v;txRefresh()},fclear(){S.fcats=[];S.faccts=[];S.ftype='all';S.q='';txRefresh()},sort(e){const k=e.dataset.v;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:-1};renderTxRows()},more(){S.limit+=120;renderTxRows()},
+ ftype(e){S.ftype=e.dataset.v;txRefresh()},fclear(){S.fcats=[];S.faccts=[];S.ftype='all';S.q='';txRefresh()},sort(e){const k=e.dataset.v;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:-1};renderTxRows()},sgo(e){const s=document.getElementById(e.dataset.v);if(s)s.scrollIntoView({behavior:'smooth',block:'start'})},pgprev(){S.page--;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},pgnext(){S.page++;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},
  import(){$('#file').click()},add(){addTxDialog()},addhold(){holdForm()},settings(){settings()},close(){closeModal()},
  edithold(e){holdForm(S.hold.find(h=>h.id===e.dataset.id))},
  holdsave(e){const n=$('#hname').value.trim();if(!n)return toast('Give it a name');const o={name:n,type:$('#htype').value,m:$('#hm').value,invested:+$('#hinv').value||0,value:+$('#hval').value||+$('#hinv').value||0,fy:$('#hfy').value===''?undefined:+$('#hfy').value,maturity:$('#hmat').value||undefined};
@@ -1013,7 +1068,7 @@ const A={
  async bkdl(){try{const j=JSON.stringify(await backupObj(),null,1);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([j],{type:'application/json'}));a.download='portfolio-backup-'+iso(new Date())+'.json';a.click();bkDone();toast(lockMeta?'Encrypted backup saved':'Backup file saved');if($('#bkbn'))render()}catch(e){toast('Download was blocked, use Copy backup')}},
  async bkcopy(){const j=JSON.stringify(await backupObj());bkDone();copyText(j,lockMeta?'Encrypted backup copied':'Backup copied')},
  async bkgo(){try{await restoreObj(JSON.parse($('#bktxt').value))}catch(e){toast('That backup could not be read')}},
- unlock(){doUnlock()},locknow(){lockNow()},setlock(){secForm('set')},chglock(){secForm('change')},offlock(){secForm('off')},secgo(e){secGo(e.dataset.mode)},
+ unlock(){doUnlock()},locknow(){lockNow()},chglock(){secForm('change')},synckeep(){syncResolve(false)},syncpull(){syncResolve(true)},syncconnect(){syncConnect()},syncnow(){syncNow(true)},syncoff(){sy.on=false;sy.tok=null;sy.err='';saveMeta();render();toast('Sync turned off. The copy on your server stays there.')},gatego(){gateGo()},gatefetch(){gateRestore()},secgo(e){secGo(e.dataset.mode)},
  lockreset(e){if(!e.dataset.sure){e.dataset.sure=1;e.textContent='Click again to erase everything on this device';return}kvDel('state').then(()=>kvDel('state.bak')).then(()=>kvDel('state.prev')).then(()=>kvDel('state.day')).then(()=>kvDel('meta')).then(()=>{try{localStorage.removeItem(KEY)}catch(x){}location.reload()})},
  vadd(){if(!lockMeta){toast('Set a passcode first');return secForm('set')}vForm()},vedit(e){vForm(S.vault.find(v=>v.id===e.dataset.id))},
  vsave(e){const l=$('#vl').value.trim(),v=$('#vv').value.trim();if(!l||!v)return toast('Add a name and a number');if(!lockMeta){closeModal();toast('Set a passcode before saving private details');return secForm('set')}
@@ -1021,11 +1076,13 @@ const A={
  vdel(e){S.vault=S.vault.filter(v=>v.id!==e.dataset.id);save();closeModal();render()},
  vrev(e){const id=e.dataset.id;REV[id]=REV[id]>Date.now()?0:Date.now()+15000;const el=$('#v-'+id),v=S.vault.find(x=>x.id===id);if(el&&v)el.outerHTML=vItem(v);if(REV[id])setTimeout(()=>{const e2=$('#v-'+id);if(e2&&!(REV[id]>Date.now()))e2.outerHTML=vItem(v)},15200)},
  vcopy(e){const v=S.vault.find(x=>x.id===e.dataset.id);if(!v)return;copyText(v.value,'Copied. Clipboard clears in 30 seconds');setTimeout(()=>{try{navigator.clipboard.writeText(' ')}catch(x){}},30000)},
- async wipe(){S.tx=[];S.hold=[];S.uploads=[];S.vault=[];S.accts=[];S.rules={};S.member='all';S.members=[{id:'me',name:'Me',color:MCOL[0]}];lockMeta=null;lockKey=null;booted=true;await saveMeta();await flush();await kvDel('state.bak');await kvDel('state.prev');await kvDel('state.day');closeModal();render();toast('All data deleted')},
+ async wipe(){S.tx=[];S.hold=[];S.uploads=[];S.vault=[];S.accts=[];S.rules={};S.member='all';S.members=[{id:'me',name:'Me',color:MCOL[0]}];sy.on=false;sy.tok=null;booted=true;await saveMeta();await flush();await kvDel('state.bak');await kvDel('state.prev');await kvDel('state.day');closeModal();render();toast('All data deleted')},
  clear(e){if(e.dataset.sure){A.wipe()}else{e.dataset.sure=1;e.textContent='Click again to delete everything'}}
 };
 document.addEventListener('click',e=>{const t=e.target.closest('[data-act]');if(t&&A[t.dataset.act]){A[t.dataset.act](t,e)}else if(e.target.id==='modal'&&!$('[data-act=pwok]'))closeModal()});
 const C={
+ stbank(el){const i=S.imp;if(!i||!i.stmt)return;const m=$('#imem');if(m)i.mem=m.value;i.stmt.bank=String(el.value||'').trim().toUpperCase();stmtDialog()},
+ perpage(el){S.limit=+el.value;S.page=0;renderTxRows()},
  cat(el){const t=S.tx.find(x=>x.id===el.dataset.id);if(t.xf){const p=S.tx.find(x=>x!==t&&x.xf===t.xf);unlinkXf(t);t.xn=1;if(p)p.xn=1}t.cat=el.value;const k=mkey(t.desc);S.rules[k]=el.value;let n=0;for(const x of S.tx)if(x!==t&&mkey(x.desc)===k&&x.cat!==el.value){x.cat=el.value;n++}save();renderTxRows();toast(n?`Moved ${n+1} “${pretty(k)}” transactions to ${el.value}`:'Category updated')},
  cur(el){S.cur=el.value;for(const k in nfs)delete nfs[k];save();settings();render()},
  mname(el){const m=S.members.find(x=>x.id===el.dataset.id);m.name=el.value.trim()||m.name;save();render()},
@@ -1034,7 +1091,7 @@ const C={
  amem(el){const a=S.accts.find(x=>x.id===el.dataset.id);a.member=el.value;S.tx.forEach(t=>{if(t.acct===a.id)t.m=el.value});save();render()},
  adue(el){const v=Math.round(+el.value);S.accts.find(x=>x.id===el.dataset.id).due=v>=1&&v<=31?v:undefined;save()},
  alim(el){S.accts.find(x=>x.id===el.dataset.id).limit=+el.value||undefined;save()},
- pwmeter(el){const n=strength(el.value),m=$('#pwm');m.style.width=(n*25)+'%';m.style.background=n>=3?'var(--in)':n===2?'var(--warn)':'var(--out)'},
+ pwmeter(el){const n=strength(el.value),m=$(el.id==='gpw1'?'#gpm':'#pwm');m.style.width=(n*25)+'%';m.style.background=n>=3?'var(--in)':n===2?'var(--warn)':'var(--out)'},
  bkevery(el){bk.every=+el.value;saveMeta();toast(bk.every?`Backup reminder every ${bk.every} days`:'Backup reminders are off')},
  autolock(el){autoLockMin=+el.value;saveMeta();toast(autoLockMin?`Auto-lock after ${autoLockMin} min`:'Auto-lock is off')},
  htype(el){const f=$('#hfy');if(!f.value&&LIMITS[el.value])f.placeholder='Up to '+money(LIMITS[el.value])},
@@ -1049,8 +1106,8 @@ document.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.
   else if(t.id==='fysel'){if(t.value){S.xo=null;S.range=t.value;render()}}
   else if(t.id==='bkfile'){t.files[0]&&t.files[0].text().then(x=>{$('#bktxt').value=x})}
   else if(t.id==='file'){const f=[...t.files];t.value='';takeFiles(f)}});
-document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;S.limit=80;renderTxRows()}else if(e.target.dataset&&e.target.dataset.change==='pwmeter')C.pwmeter(e.target)});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden&&!$('[data-act=pwok]'))closeModal();if(e.key==='Enter'&&e.target.id==='pw')A.pwok();if(e.key==='Enter'&&e.target.id==='lockpw')doUnlock()});
+document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;S.page=0;renderTxRows()}else if(e.target.dataset&&/^pwmeter/.test(e.target.dataset.change))C.pwmeter(e.target)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden&&!$('[data-act=pwok]'))closeModal();if(e.key==='Enter'&&e.target.id==='pw')A.pwok();if(e.key==='Enter'&&e.target.id==='lockpw')doUnlock();if(e.key==='Enter'&&(e.target.id==='gpw1'||e.target.id==='gpw2'))gateGo()});
 /* tooltips + chart highlight */
 const tip=$('#tip');
 function tipMove(e){const t=e.target.closest&&e.target.closest('[data-tip]');if(!t){tip.style.opacity=0;return}tip.innerHTML=t.getAttribute('data-tip');tip.style.opacity=1;

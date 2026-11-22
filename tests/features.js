@@ -5,7 +5,7 @@ const {launch,URL,ROOT,ok,done,csv,loadDemo}=require('./lib');
 const h=await launch(),p=h.page;const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'pf-'));
 await p.goto(URL);await p.waitForTimeout(1000);await loadDemo(p);
 console.log('Card due day');
-await p.click('[data-act=settings]');await p.waitForSelector('.setp');
+await p.click('#tabs [data-v=bal]');await p.waitForSelector('.mng');await p.click('.mng summary');
 const due=p.locator('input[data-change=adue]').first();await due.fill('15');await due.dispatchEvent('change');await p.waitForTimeout(400);
 await p.click('#tabs [data-v=cards]');await p.waitForSelector('.duerow .tg');
 ok(/Payment due/.test(await p.textContent('.duerow')),'Cards page shows the next payment due date');
