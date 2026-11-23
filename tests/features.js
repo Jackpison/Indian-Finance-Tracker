@@ -105,6 +105,7 @@ await p.click('#tabs [data-v=bal]');await p.waitForSelector('.lr');
 const main1=await p.textContent('#main');
 ok(!/ICICI BANK/.test(main1)&&((main1.match(/ICICI Savings ••0872/g)||[]).length===1),'"ICICI BANK" and "ICICI" are one bank, so the account is merged into one row');
 ok(/₹86,030/.test(main1)&&!/₹16,721/.test(main1),'the newer balance wins after the merge');
+{const own=await p.$$eval('#main .card:has(h3:text-is("Fixed deposits")) .lr',r=>r.map(x=>(x.querySelector('.tg.own')||{}).textContent||''));ok(own.length===2&&own.includes('Asha')&&own.includes('Ravi'),'each fixed deposit on Portfolio shows its owner tag ('+own.join(',')+')');}
 await p.click('.mem .pill:has-text("Everyone")').catch(()=>{});
 await p.setInputFiles('#file',sampleStmt);await p.waitForSelector('#imem',{timeout:30000});
 ok((await p.$eval('#ibank',e=>e.value))==='AXIS'&&/already have this account number under AXIS/.test(await p.textContent('#modal')),'a statement whose account number you already have uses that account\'s bank, and says so');

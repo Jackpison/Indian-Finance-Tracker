@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.7.0'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
+const VERSION='0.7.1'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -937,7 +937,7 @@ function balView(){const nw=netWorth();
    <div class="card s12"><div class="ch"><div><h3>Bank and card accounts</h3><div class="cs">Balance is the closing balance on your latest statement, plus anything imported after it.</div></div></div>${accs.length?accs.map(row).join(''):'<div class="muted" style="padding:14px 0">Import a statement to add accounts.</div>'}</div>
    ${manageAccts()}
    <div class="card s12"><div class="ch"><div><h3>Fixed deposits</h3><div class="cs">${fds.length?`${fds.length} running · ${money(fdTot)} in total`:'None found in your statements'}</div></div><button class="btn sm link" data-act="view" data-v="inv">Open investments →</button></div>
-    ${fds.map(h=>{const dl=h.maturity?daysBetween(today,h.maturity):null;return`<div class="lr"><div class="lm"><div class="ln">${esc(h.name)} ${h.rate?`<span class="tg ok">${h.rate}%</span>`:''}</div><div class="lsub">${h.maturity?`Matures ${fd(h.maturity)}${dl!=null?(dl<0?' · past maturity':` · in ${dl} days`):''}`:'No maturity date'}</div></div><div class="lv"><span class="num">${money(h.value)}</span></div></div>`}).join('')}</div>
+    ${fds.map(h=>{const dl=h.maturity?daysBetween(today,h.maturity):null;return`<div class="lr"><div class="lm"><div class="ln">${esc(h.name)} ${h.rate?`<span class="tg ok">${h.rate}%</span>`:''}</div><div class="lsub">${h.m?ownTag(h.m)+' · ':''}${h.maturity?`Matures ${fd(h.maturity)}${dl!=null?(dl<0?' · past maturity':` · in ${dl} days`):''}`:'No maturity date'}</div></div><div class="lv"><span class="num">${money(h.value)}</span></div></div>`}).join('')}</div>
   </div>`}
 function manageAccts(){const row=(t,d)=>`<div class="srow"><div class="st"><b>${t}</b>${d?`<span>${d}</span>`:''}</div></div>`;
   return`<details class="card s12 mng"><summary><div><h3>Manage accounts and cards</h3><div class="cs">Rename, change owner or type, set a card limit and payment due day.</div></div></summary><div class="scard" style="margin-top:12px">${S.accts.length?S.accts.map(a=>`<div class="srow wide"><div class="st"><input class="in-t plain" value="${esc(a.name)}" data-change="aname" data-id="${a.id}" aria-label="Account name"><span>${a.bank?esc(a.bank)+' · ':''}${a.no?'••'+esc(a.no):''}</span></div><div class="sc">${sel('at'+a.id,[['bank','Bank'],['card','Card']],a.type,`data-change="atype" data-id="${a.id}"`)}${sel('am'+a.id,memberOpts(),a.member,`data-change="amem" data-id="${a.id}"`)}${a.type==='card'?`<input class="in-t lim" type="number" placeholder="Limit" value="${a.limit||''}" data-change="alim" data-id="${a.id}" aria-label="Card limit"><input class="in-t lim" type="number" min="1" max="31" placeholder="Due day" value="${a.due||''}" data-change="adue" data-id="${a.id}" aria-label="Payment due day of month" title="Payment due day of month">`:''}</div></div>`).join(''):row('No accounts yet','They appear after you import your first file.')}</div></details>`}

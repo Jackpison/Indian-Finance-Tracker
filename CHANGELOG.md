@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-23
+### Changed
+- Fixed deposits on Portfolio now show the owner's tag, like accounts and cards do.
+
 ## [0.7.0] - 2026-11-23
 ### Added
 - **Sync turns itself on.** Once the app has data and `sync.php` is on your site, the encrypted copy is uploaded automatically; no Connect step. A browser with no data never claims an empty server, and "Turn off" is remembered.
