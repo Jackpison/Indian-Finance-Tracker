@@ -299,12 +299,21 @@ body{background-image:none}
 .pill[aria-pressed=true]{background:var(--surface-2);color:var(--fg);border-color:var(--faint)}
 .card h3,.kpi .lbl{text-transform:none}
 .sidebrand{display:none}
+#sidefoot{display:none}
 @media(min-width:1100px){
   body{overflow-x:hidden}
   .aurora{display:none}
   .shell{max-width:none;padding:0 28px 56px 288px;position:relative}
   .tabs{position:fixed;left:0;top:0;bottom:0;width:260px;margin:0;padding:18px 14px;border:0;border-right:1px solid var(--line);border-radius:0;background:var(--surface);flex-direction:column;gap:2px;overflow-y:auto;max-width:none;z-index:5}
   .tabs .ind{display:none}
+  #sidefoot{display:flex;flex-direction:column;gap:2px;margin-top:auto;padding-top:12px;border-top:1px solid var(--line);position:sticky;bottom:0;background:inherit}
+  #sidefoot .sfrow{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;border:0;background:none;border-radius:10px;font-size:13px;color:var(--muted);text-align:left}
+  #sidefoot .sfrow:hover{background:var(--surface-2);color:var(--fg)}
+  #sidefoot kbd{margin-left:auto;font:11px ui-monospace,monospace;opacity:.7}
+  #sidefoot .sfd{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
+  #sidefoot .sfd.ok{background:#1faa6b}#sidefoot .sfd.warn{background:#e0a21b}
+  .tabs button.hasupd .ver{background:var(--accent);color:#fff;opacity:1}
+  .tabs button.hasupd .ver::after{content:" · new"}
   .tabs .sidebrand{display:flex;margin:2px 8px 18px;align-items:center}
   .tabs button{width:100%;justify-content:flex-start;padding:10px 12px;border-radius:10px;font-size:14.5px;gap:12px}
   .tabs button:hover{background:var(--surface-2);color:var(--fg)}

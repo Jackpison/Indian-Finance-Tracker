@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-23
+### Changed
+- **Side panel (desktop):** a footer now shows whether sync is on and when it last synced (click it to open sync settings) and a Lock now button. The Updates item shows a "new" mark when a newer version is available. The layout of the page itself is unchanged.
+
 ## [0.7.1] - 2026-11-23
 ### Changed
 - Fixed deposits on Portfolio now show the owner's tag, like accounts and cards do.

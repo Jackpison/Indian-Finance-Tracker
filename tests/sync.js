@@ -60,6 +60,7 @@ const post = async (body) => { const r = await fetch(BASE + 'sync.php', { method
   for (let k = 0; k < 40 && !(await post({ a: 'info' })).j.exists; k++) await new Promise(r => setTimeout(r, 500));
   await a.click('[data-act=settings]'); await a.waitForSelector('[data-act=syncnow]', { timeout: 30000 });
   ok(/On/.test(await a.textContent('#syncst')), 'sync switched itself on once there was data and the server was empty');
+  ok(/Synced/.test(await a.textContent('#sidefoot')) && (await a.$('#sidefoot [data-act=locknow]')) !== null, 'the side panel shows sync status and a Lock button');
   const info = (await post({ a: 'info' })).j;
   ok(info.exists && info.rev >= 1, 'the first push is on the server (revision ' + info.rev + ')');
   for (let k = 0; k < 40 && !(fs.existsSync(path.join(site, 'sync-data/blob.php')) && fs.statSync(path.join(site, 'sync-data/blob.php')).size > 1000); k++) await new Promise(r => setTimeout(r, 250));
