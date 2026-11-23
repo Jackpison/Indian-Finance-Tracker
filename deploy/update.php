@@ -123,17 +123,37 @@ function install(string $root, array $rel): void {
     if (function_exists('opcache_reset')) @opcache_reset();
 }
 
+/* Installing is allowed with the app passcode: the browser derives a token from it (the same one sync.php checks) and this
+   file compares its SHA-256 with the one stored by sync.php. update.config.php, if present, is still accepted as before. */
+function sync_meta(string $root): ?array {
+    $raw = @file_get_contents($root . '/sync-data/meta.php'); if ($raw === false) return null;
+    $n = strpos($raw, "\n"); $j = $n === false ? null : json_decode(substr($raw, $n + 1), true);
+    return is_array($j) && !empty($j['hash']) && !empty($j['asalt']) ? $j : null;
+}
+function install_throttle(string $root, ?bool $failed): bool { // true = this visitor is paused
+    $f = $root . '/.update-fails.php'; $ip = $_SERVER['REMOTE_ADDR'] ?? '?'; $now = time();
+    $raw = @file_get_contents($f); $n = $raw === false ? false : strpos($raw, "\n");
+    $all = $n === false ? [] : (json_decode(substr($raw, $n + 1), true) ?: []);
+    $mine = array_values(array_filter($all[$ip] ?? [], fn($t) => $t > $now - 600));
+    if ($failed === true) { $mine[] = $now; $all[$ip] = $mine; @file_put_contents($f, "<?php http_response_code(404); exit; ?>\n" . json_encode($all)); }
+    return count($mine) >= 8;
+}
 function jout(array $d, int $c = 200): never { http_response_code($c); header('Content-Type: application/json'); echo json_encode($d); exit; }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['api'] ?? '') === '1') { // used by the in-app Updates page
     usleep(400000);
     $do = (string)($_POST['do'] ?? 'check');
     if ($do === 'check') { // public release info only, so no password is needed to look
         try { $cur = current_version($root); $rel = latest($cfg);
-            jout(['installed' => $cur, 'latest' => $rel['version'], 'newer' => version_compare($rel['version'], $cur, '>'), 'notes' => mb_substr($rel['notes'], 0, 6000)]);
+            $sm = sync_meta($root);
+            jout(['installed' => $cur, 'latest' => $rel['version'], 'newer' => version_compare($rel['version'], $cur, '>'), 'notes' => mb_substr($rel['notes'], 0, 6000),
+                  'auth' => $sm ? 'passcode' : ($configured ? 'config' : 'none'), 'asalt' => $sm ? $sm['asalt'] : null]);
         } catch (Throwable $e) { jout(['error' => $e->getMessage()], 500); }
     }
-    if (!$configured) jout(['error' => 'Installing needs a password. Copy update.config.example.php to update.config.php, set a long random password (24+ characters), then try again.', 'needconfig' => true], 403);
-    if (!hash_equals((string)$cfg['token'], (string)($_POST['token'] ?? ''))) jout(['error' => 'Wrong password.'], 403); // installing needs the password
+    $tok = (string)($_POST['token'] ?? ''); $sm = sync_meta($root);
+    if (!$sm && !$configured) jout(['error' => 'Installing is checked against your passcode, which this server learns when sync starts. Sync turns on by itself once the app has data and sync.php is on your site. Open the app, add or import something, then try again.', 'needsync' => true], 403);
+    if (install_throttle($root, null)) jout(['error' => 'Too many wrong attempts. Wait a few minutes.'], 429);
+    $ok = ($sm && preg_match('/^[0-9a-f]{64}$/', $tok) && hash_equals((string)$sm['hash'], hash('sha256', $tok))) || ($configured && hash_equals((string)$cfg['token'], $tok));
+    if (!$ok) { install_throttle($root, true); usleep(400000); jout(['error' => 'Wrong passcode.'], 403); } // nothing changes until the passcode is right
     $lk = fopen($root . '/.update.lock', 'c');
     if (!$lk || !flock($lk, LOCK_EX | LOCK_NB)) jout(['error' => 'An update is already running.'], 409);
     try {

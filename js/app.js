@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.6.3'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
+const VERSION='0.7.0'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -96,7 +96,7 @@ function repairData(){const r={acct:0,tx:0,fd:0};
   const grp=new Map();for(const h of S.hold)if(isStmHold(h)&&h.type==='FD / RD'&&h.asof){const k=h.m+'|'+(h.bank||'').toLowerCase(),g=grp.get(k);if(!g||h.asof>g)grp.set(k,h.asof)}
   const before=S.hold.length;S.hold=S.hold.filter(h=>!(isStmHold(h)&&h.type==='FD / RD'&&h.asof&&h.asof<grp.get(h.m+'|'+(h.bank||'').toLowerCase())));r.fd=before-S.hold.length;
   if(r.acct||r.tx||r.fd){matchTransfers();S._rep=r}return r}
-async function saveMeta(){await kvSet('meta',{lock:lockMeta,autoLock:autoLockMin,bk,sync:sy.on?{on:1,rev:sy.rev,last:sy.last,asalt:sy.asalt}:null})}
+async function saveMeta(){await kvSet('meta',{lock:lockMeta,autoLock:autoLockMin,bk,sync:(sy.on||sy.never)?{on:sy.on?1:0,never:sy.never?1:0,rev:sy.rev,last:sy.last,asalt:sy.asalt}:null})}
 function save(){S._rv=(S._rv||0)+1;if(!booted||frozen)return;clearTimeout(saveT);saveT=setTimeout(flush,250)}
 /* Saving is defensive: never overwrite newer data written by another tab, keep rolling automatic copies, and say so when a write fails. */
 let stateTs=0,frozen=false,saveFail=false,lastBak=0,persisted=null;
@@ -134,10 +134,13 @@ let gateAlt=null,usedAlt=false;
 function showGate(hasData){const g=$('#gate');g.hidden=false;const im=$('.brand img');if(im)$('#gateimg').src=im.src;
   $('#gatenote').textContent=hasData?'Your data on this device is not locked yet. Choose a passcode and it will be encrypted straight away.':'Everything you add is encrypted with this passcode, on this device, before it is stored.';setTimeout(()=>$('#gpw1').focus(),50)}
 async function gateGo(){const err=m=>{$('#gateerr').textContent=m};if(!CAN_CRYPTO)return err('Encryption needs an HTTPS connection (or localhost).');
-  const p1=$('#gpw1').value;if(p1.length<10)return err('Use at least 10 characters. A few words in a row work well.');if(p1!==$('#gpw2').value)return err('The two passcodes do not match.');
-  const b=$('#gatego');b.disabled=true;b.textContent='Securing…';await new Promise(r=>setTimeout(r,30));
+  const p1=$('#gpw1').value;syncPass=p1;if(p1.length<10)return err('Use at least 10 characters. A few words in a row work well.');if(p1!==$('#gpw2').value)return err('The two passcodes do not match.');
+  const b=$('#gatego');b.disabled=true;b.textContent='Securing…';
+  try{await new Promise(r=>setTimeout(r,30));
+
   const salt=crypto.getRandomValues(new Uint8Array(16)),iter=600000,key=await deriveKey(p1,salt,iter);lockMeta={salt:b64(salt),iter,check:await encStr(key,'ift-ok')};lockKey=key;
-  $('#gate').hidden=true;$('#gpw1').value=$('#gpw2').value='';booted=true;await saveMeta();await flush();lastAct=Date.now();render();reportRepair(null);if(gateAlt){recoverDialog(gateAlt);gateAlt=null}}
+  $('#gate').hidden=true;$('#gpw1').value=$('#gpw2').value='';booted=true;await saveMeta();await flush();lastAct=Date.now();render();reportRepair(null);if(gateAlt){recoverDialog(gateAlt);gateAlt=null}
+  }catch(e){console.error(e);err('Could not create the passcode: '+(e&&e.message||e));b.disabled=false;b.textContent='Create passcode'}}
 async function gateRestore(){const err=m=>{$('#gateerr').textContent=m};const pw=$('#gpw1').value;if(!pw)return err('Type the passcode you use on your other devices in the first box, then press this again.');
   const b=$('#gatefetch');b.disabled=true;const was=b.textContent;b.textContent='Restoring…';
   try{const info=await syncCall({a:'info'});if(!info.exists)throw new Error('Nothing is stored on this server yet.');
@@ -152,7 +155,7 @@ async function doUnlock(){const pw=$('#lockpw').value;if(!pw||Date.now()<lockWai
   const key=await tryKey(pw,lockMeta);btn.disabled=false;btn.textContent='Unlock';
   if(!key){lockFails++;if(lockFails>=3)lockWait=Date.now()+Math.min(60,Math.pow(2,lockFails-2))*1000;const c=$('.lockcard');c.classList.remove('shake');void c.offsetWidth;c.classList.add('shake');$('#lockerr').textContent=lockFails>=3?'Wrong passcode. Please wait a few seconds before trying again.':'Wrong passcode. Try again.';$('#lockpw').select();return}
   try{applyState(pendingRec?JSON.parse(await decStr(key,pendingRec)):{})}catch(e){$('#lockerr').textContent='Could not read the saved data.';return}
-  lockKey=key;pendingRec=null;if(sy.on)try{sy.tok=await syncToken(pw,sy.asalt);syncPass=pw}catch(e){}booted=true;$('#lock').hidden=true;$('#lockpw').value='';lastAct=Date.now();render();if(usedAlt){usedAlt=false;save();toast('Your main copy was missing, so the automatic copy was restored')}syncCheck()}
+  lockKey=key;pendingRec=null;syncPass=pw;if(sy.on)try{sy.tok=await syncToken(pw,sy.asalt)}catch(e){}booted=true;$('#lock').hidden=true;$('#lockpw').value='';lastAct=Date.now();render();if(usedAlt){usedAlt=false;save();toast('Your main copy was missing, so the automatic copy was restored')}syncCheck()}
 let lastAct=Date.now();['pointerdown','keydown','wheel','touchstart'].forEach(ev=>addEventListener(ev,()=>{lastAct=Date.now()},{passive:true}));
 setInterval(()=>{if(lockMeta&&lockKey&&autoLockMin>0&&Date.now()-lastAct>autoLockMin*60000)lockNow()},15000);
 async function lockNow(){await flush();location.reload()}
@@ -175,7 +178,7 @@ async function secGo(mode){const err=m=>{$('#secerr').textContent=m};if(!CAN_CRY
 /* ---------- encrypted sync to your own server (sync.php) ----------
    The server gets the same encrypted backup object a download would contain, plus a token derived from the passcode.
    It cannot read the data. A push is refused if the server holds something this browser has not seen. */
-const sy={on:false,rev:0,last:0,asalt:'',tok:null,busy:false,err:'',t:null};
+const sy={on:false,never:false,rev:0,last:0,asalt:'',tok:null,busy:false,err:'',t:null,autoTried:false};
 const hex=buf=>[...new Uint8Array(buf)].map(x=>x.toString(16).padStart(2,'0')).join('');
 async function syncToken(pass,asalt){const km=await crypto.subtle.importKey('raw',TE.encode(pass),'PBKDF2',false,['deriveBits']);
   const salt=TE.encode(asalt+'|sync-auth');return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:600000,hash:'SHA-256'},km,256))}
@@ -186,8 +189,15 @@ async function syncCall(body){let r;try{r=await fetch('sync.php',{method:'POST',
 async function syncPush(o={}){if(!lockKey||!sy.tok&&!o.newTok)return;const empty=!S.tx.length&&!S.hold.length&&!S.vault.length&&!S.accts.length;if(empty&&sy.rev)return;
   const blob=await backupObj();const j=await syncCall({a:'push',token:o.oldTok||sy.tok,newtoken:o.newTok||undefined,asalt:sy.asalt,base:sy.rev,blob,force:o.force?1:undefined});
   sy.rev=j.rev;sy.last=Date.now();sy.err='';await saveMeta()}
-function syncSoon(){if(!sy.on||!sy.tok||frozen||sy.noSoon)return;clearTimeout(sy.t);sy.t=setTimeout(syncNow,4000)}
-async function syncCheck(){if(!sy.on||!sy.tok)return;try{const j=await syncCall({a:'info'});if(j.exists&&j.rev>sy.rev)syncConflict(j.rev);else syncSoon()}catch(e){sy.err=e.message}}
+function hasData(){return S.tx.length||S.hold.length||S.accts.length||S.vault.length}
+/* Turned on by itself when the passcode is known, there is data to protect and sync.php answers on the same site.
+   If the server already holds a copy it is left alone: Settings, Sync to your server, lets you choose. */
+async function autoSync(){if(sy.on||sy.never||sy.autoTried||!syncPass||!lockKey||!hasData()||!/^https?:/.test(location.protocol))return;sy.autoTried=true;
+  try{const info=await syncCall({a:'info'});if(info.exists){sy.err='';return}
+    sy.asalt=b64(crypto.getRandomValues(new Uint8Array(18))).replace(/[+\/=]/g,'x');sy.tok=await syncToken(syncPass,sy.asalt);sy.on=true;sy.rev=0;await syncPush();await saveMeta();toast('Your data is also kept, encrypted, on your server');render()}
+  catch(e){sy.on=false;sy.tok=null}}
+function syncSoon(){if(!sy.on&&!sy.never&&!sy.autoTried){autoSync();return}if(!sy.on||!sy.tok||frozen||sy.noSoon)return;clearTimeout(sy.t);sy.t=setTimeout(syncNow,4000)}
+async function syncCheck(){if(!sy.on){autoSync();return}if(!sy.tok)return;try{const j=await syncCall({a:'info'});if(j.exists&&j.rev>sy.rev)syncConflict(j.rev);else syncSoon()}catch(e){sy.err=e.message}}
 async function syncNow(manual){if(!sy.on||!sy.tok||sy.busy||!booted||frozen)return;sy.busy=true;
   try{sy.noSoon=true;try{await flush()}finally{sy.noSoon=false}await syncPush();if(manual)toast('Synced to your server')}
   catch(e){if(e.status===409){sy.err='conflict';syncConflict(e.j.rev)}else{sy.err=e.message;if(manual)toast(e.message)}}
@@ -197,7 +207,7 @@ function syncConflict(rev){modal(`<h2>Your server has newer data</h2><p class="s
 async function syncPullApply(){const j=await syncCall({a:'pull',token:sy.tok}),b=j.blob;const k=await tryKey(syncPass,b.lock);if(!k)throw new Error('The server copy was made with a different passcode');
   applyState(JSON.parse(await decStr(k,b)));S.member='all';sy.rev=j.rev;sy.last=Date.now();sy.err='';save();await saveMeta()}
 let syncPass='';
-async function syncConnect(){const pw=await askSecret('Connect sync','Enter your passcode to connect this browser to your server.');closeModal();if(pw==null)return;
+async function syncConnect(){sy.never=false;const pw=await askSecret('Connect sync','Enter your passcode to connect this browser to your server.');closeModal();if(pw==null)return;
   const k=await tryKey(pw,lockMeta);if(!k)return toast('Wrong passcode');toast('Connecting…');
   try{const info=await syncCall({a:'info'});syncPass=pw;
     if(!info.exists){sy.asalt=b64(crypto.getRandomValues(new Uint8Array(18))).replace(/[+\/=]/g,'x');sy.tok=await syncToken(pw,sy.asalt);sy.on=true;sy.rev=0;await syncPush();toast('Sync is on. Your encrypted data is now on your server.')}
@@ -996,23 +1006,25 @@ const sget=k=>{try{return sessionStorage.getItem(k)||''}catch(e){return ''}},spu
 function updView(){const u=S._u||{},tab=S._ut||'update',web=location.protocol.startsWith('http');
   const tabs=`<div class="segc" role="group" aria-label="Updates">${[['update','Update'],['log','Changelog']].map(([k,l])=>`<button class="${tab===k?'on':''}" data-act="updtab" data-v="${k}">${l}</button>`).join('')}</div>`;
   const status=u.busy?'Working…':u.err?`<span class="out">${esc(u.err)}</span>`:u.done?`<b class="in">Updated to v${esc(u.done)}.</b> Reload to start using it.`:u.latest?(u.newer?`Version <b>v${esc(u.latest)}</b> is available.`:`You have the newest version (v${esc(u.installed)}).`):'Press Check now to ask GitHub for the latest release.';
-  const setup=u.nophp||!web?`<div class="scard" style="margin-top:14px"><div class="srow"><div class="st"><b>One-time setup on your site</b><span>${web?'This site has no updater yet: <code>update.php</code> is missing.':'Updates only work on a site served over http(s).'} <code>update.php</code> comes in the release ZIP, so extract the ZIP over your site (or upload that one file next to <code>index.html</code>) and press Check now again. Checking needs nothing else. To install from this page too, copy <code>update.config.example.php</code> to <code>update.config.php</code> and set a long random password.</span></div></div></div>`:'';
+  const setup=u.nophp||!web?`<div class="scard" style="margin-top:14px"><div class="srow"><div class="st"><b>One-time setup on your site</b><span>${web?'This site has no updater yet: <code>update.php</code> is missing.':'Updates only work on a site served over http(s).'} <code>update.php</code> comes in the release ZIP, so extract the ZIP over your site (or upload that one file next to <code>index.html</code>) and press Check now again. Checking needs nothing else. Installing is confirmed with your Portfolio passcode.</span></div></div></div>`:'';
   const pill=u.done?'<span class="tg ok">Updated</span>':u.latest?(u.newer?'<span class="tg warn">Update available</span>':'<span class="tg ok">Up to date</span>'):'';
   const body=tab==='log'?`<div class="scard"><div class="srow"><div class="st"><b>Release notes</b><span style="white-space:pre-wrap;display:block;margin-top:6px">${u.notes?esc(u.notes):'Press Check now on the Update tab to load the latest release notes from GitHub.'}</span></div></div></div>`:
   `<div class="scard"><div class="srow"><div class="st"><b>Update from GitHub</b><span>${status}</span></div><div class="sc"><span class="faint" style="font-size:13px">Installed v${VERSION}</span>${pill}<button class="btn sm" data-act="updcheck" ${u.busy?'disabled':''}>Check now</button>${u.done?'<button class="btn sm primary" data-act="reload">Reload</button>':''}</div></div>
-  ${u.newer&&!u.done?`<div class="srow"><div class="st"><b>Install v${esc(u.latest)}</b><span>Checking is open to you. Installing needs the update password from <code>update.config.php</code> on your server. It is kept for this browser session only.</span></div><div class="sc"><input class="in-t" id="utok" type="password" autocomplete="off" placeholder="Update password" value="${esc(sget('pf.ut'))}" style="width:200px" aria-label="Update password"><button class="btn sm primary" data-act="updinstall" ${u.busy?'disabled':''}>Install</button></div></div>`:''}</div>${setup}
-  ${u.needcfg?`<div class="srow wide"><div class="st"><b>One-time step on your server</b><span>Your server has no update password yet. In your host's file manager, open the folder that holds <code>index.html</code>, create a file named <code>update.config.php</code> and paste exactly this into it (the password below was just generated in your browser and is already filled in here). Save it, then press Install again.</span></div><textarea class="in-t" id="cfgtxt" readonly rows="6" style="width:100%;font-family:ui-monospace,monospace;font-size:12.5px">&lt;?php\nreturn [\n    'token' => '${u.needcfg}',\n    'repo'  => 'Jackpison/Indian-Finance-Tracker',\n];</textarea><div class="sc"><button class="btn sm primary" data-act="cfgcopy">Copy file contents</button></div></div>`:''}
+  ${u.newer&&!u.done?`<div class="srow"><div class="st"><b>Install v${esc(u.latest)}</b><span>${u.auth==='none'?'Installing is switched off: this server has no sync copy yet. Let Sync to your server run once, then come back.':'Installing asks for your Portfolio passcode, the same one that unlocks this app. Nothing else to set up.'}</span></div><div class="sc"><button class="btn sm primary" data-act="updinstall" ${u.busy||u.auth==='none'?'disabled':''}>Install</button></div></div>`:''}</div>${setup}
   <div class="note" style="margin-top:14px">Installing downloads the release from GitHub onto your server, checks its SHA-256, keeps a backup of the replaced files and never touches your data, which lives in this browser.</div>`;
   return`<div class="setp"><div style="margin-bottom:14px">${tabs}</div>${body}</div>`}
-async function updCall(act){const tok=act==='install'?(($('#utok')||{}).value||sget('pf.ut')):'';if(act==='install'){if(!tok){S._u={...S._u,err:'Enter your update password to install.'};return render()}sput('pf.ut',tok)}
+async function updCall(act){let tok='';
+  if(act==='install'){const u=S._u||{};
+    if(u.auth==='none'){S._u={...u,err:'Installing needs Sync to your server to be on first.'};return render()}
+    const pw=await askSecret('Install update','Enter your Portfolio passcode to confirm.');closeModal();if(pw==null)return;
+    try{tok=u.auth==='config'?pw:await syncToken(pw,u.asalt)}catch(e){S._u={...u,err:'Could not check the passcode.'};return render()}}
   S._u={...S._u,busy:true,err:''};render();
   try{const fd=new FormData();fd.append('api','1');if(tok)fd.append('token',tok);fd.append('do',act==='install'?'install':'check');
     const r=await fetch('update.php',{method:'POST',body:fd,cache:'no-store'});let j=null;try{j=await r.json()}catch(e){}
     if(r.status===404||(!j&&r.status!==200)){S._u={nophp:r.status===404,err:r.status===404?'':'The updater is not set up correctly on your server ('+r.status+').'};return render()}
-    if(j&&j.needconfig){const g=hex(crypto.getRandomValues(new Uint8Array(24)));sput('pf.ut',g);S._u={...S._u,busy:false,err:'',needcfg:g}}
-    else if(!j||j.error)S._u={...(act==='install'?S._u:{}),busy:false,err:(j&&j.error)||'Unexpected reply from the updater.'};
+    if(!j||j.error)S._u={...(act==='install'?S._u:{}),busy:false,err:(j&&j.error)||'Unexpected reply from the updater.'};
     else if(act==='install')S._u={...S._u,busy:false,done:j.version,err:''};
-    else S._u={installed:j.installed,latest:j.latest,newer:j.newer,notes:j.notes};
+    else S._u={installed:j.installed,latest:j.latest,newer:j.newer,notes:j.notes,auth:j.auth,asalt:j.asalt};
   }catch(e){S._u={err:'Could not reach the updater.'}}
   render()}
 function settingsView(){
@@ -1068,7 +1080,7 @@ const A={
  xrow(e){const r=e.closest('.txr');if(!r)return;const o=!r.classList.contains('open');document.querySelectorAll('.txr.open').forEach(x=>{x.classList.remove('open');x.firstElementChild.setAttribute('aria-expanded','false')});if(o){r.classList.add('open');e.setAttribute('aria-expanded','true')}S.xo=o?e.dataset.id:null},
  fpanel(e){S.fp=!S.fp;const p=$('#fpan');if(p)p.classList.toggle('open',S.fp);e.setAttribute('aria-expanded',String(S.fp))},
  fchip(e){const l=e.dataset.k==='c'?S.fcats:S.faccts,v=e.dataset.v,i=l.indexOf(v);i<0?l.push(v):l.splice(i,1);txRefresh()},
- ftype(e){S.ftype=e.dataset.v;txRefresh()},fclear(){S.fcats=[];S.faccts=[];S.ftype='all';S.q='';txRefresh()},sort(e){const k=e.dataset.v;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:-1};renderTxRows()},cfgcopy(){const v=$('#cfgtxt').value;try{navigator.clipboard.writeText(v);toast('Copied. Paste it into update.config.php on your server.')}catch(e){$('#cfgtxt').select()}},memwipe(){mwDialog()},mwgo(){const id=$('#mwm').value,rm=$('#mwr').checked;wipeMember(id,rm)},sgo(e){const s=document.getElementById(e.dataset.v);if(s)s.scrollIntoView({behavior:'smooth',block:'start'})},pgprev(){S.page--;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},pgnext(){S.page++;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},
+ ftype(e){S.ftype=e.dataset.v;txRefresh()},fclear(){S.fcats=[];S.faccts=[];S.ftype='all';S.q='';txRefresh()},sort(e){const k=e.dataset.v;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:-1};renderTxRows()},memwipe(){mwDialog()},mwgo(){const id=$('#mwm').value,rm=$('#mwr').checked;wipeMember(id,rm)},sgo(e){const s=document.getElementById(e.dataset.v);if(s)s.scrollIntoView({behavior:'smooth',block:'start'})},pgprev(){S.page--;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},pgnext(){S.page++;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},
  import(){$('#file').click()},add(){addTxDialog()},addhold(){holdForm()},settings(){settings()},close(){closeModal()},
  edithold(e){holdForm(S.hold.find(h=>h.id===e.dataset.id))},
  holdsave(e){const n=$('#hname').value.trim();if(!n)return toast('Give it a name');const o={name:n,type:$('#htype').value,m:$('#hm').value,invested:+$('#hinv').value||0,value:+$('#hval').value||+$('#hinv').value||0,fy:$('#hfy').value===''?undefined:+$('#hfy').value,maturity:$('#hmat').value||undefined};
@@ -1092,7 +1104,7 @@ const A={
  async bkdl(){try{const j=JSON.stringify(await backupObj(),null,1);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([j],{type:'application/json'}));a.download='portfolio-backup-'+iso(new Date())+'.json';a.click();bkDone();toast(lockMeta?'Encrypted backup saved':'Backup file saved');if($('#bkbn'))render()}catch(e){toast('Download was blocked, use Copy backup')}},
  async bkcopy(){const j=JSON.stringify(await backupObj());bkDone();copyText(j,lockMeta?'Encrypted backup copied':'Backup copied')},
  async bkgo(){try{await restoreObj(JSON.parse($('#bktxt').value))}catch(e){toast('That backup could not be read')}},
- unlock(){doUnlock()},locknow(){lockNow()},chglock(){secForm('change')},synckeep(){syncResolve(false)},syncpull(){syncResolve(true)},syncconnect(){syncConnect()},syncnow(){syncNow(true)},syncoff(){sy.on=false;sy.tok=null;sy.err='';saveMeta();render();toast('Sync turned off. The copy on your server stays there.')},gatego(){gateGo()},gatefetch(){gateRestore()},secgo(e){secGo(e.dataset.mode)},
+ unlock(){doUnlock()},locknow(){lockNow()},chglock(){secForm('change')},synckeep(){syncResolve(false)},syncpull(){syncResolve(true)},syncconnect(){syncConnect()},syncnow(){syncNow(true)},syncoff(){sy.on=false;sy.never=true;sy.tok=null;sy.err='';saveMeta();render();toast('Sync turned off. The copy on your server stays there.')},gatego(){gateGo()},gatefetch(){gateRestore()},secgo(e){secGo(e.dataset.mode)},
  lockreset(e){if(!e.dataset.sure){e.dataset.sure=1;e.textContent='Click again to erase everything on this device';return}kvDel('state').then(()=>kvDel('state.bak')).then(()=>kvDel('state.prev')).then(()=>kvDel('state.day')).then(()=>kvDel('meta')).then(()=>{try{localStorage.removeItem(KEY)}catch(x){}location.reload()})},
  vadd(){if(!lockMeta){toast('Set a passcode first');return secForm('set')}vForm()},vedit(e){vForm(S.vault.find(v=>v.id===e.dataset.id))},
  vsave(e){const l=$('#vl').value.trim(),v=$('#vv').value.trim();if(!l||!v)return toast('Add a name and a number');if(!lockMeta){closeModal();toast('Set a passcode before saving private details');return secForm('set')}

@@ -28,5 +28,10 @@ exports.PASS='correct horse battery staple';
 /* Creates the passcode on the first-run gate, or unlocks when it is already set. */
 exports.gate=async(p,pw=exports.PASS)=>{
   await p.waitForFunction(()=>{const g=document.getElementById('gate'),l=document.getElementById('lock');return (g&&!g.hidden)||(l&&!l.hidden)||(document.querySelector('#main')&&document.querySelector('#main').children.length)},null,{timeout:30000}).catch(()=>{});
-  if(await p.isVisible('#gate')){await p.fill('#gpw1',pw);await p.fill('#gpw2',pw);await p.click('#gatego');await p.waitForSelector('#gate',{state:'hidden',timeout:45000});await p.waitForTimeout(300)}
+  if(await p.isVisible('#gate')){
+    for(let attempt=0;attempt<3;attempt++){
+      await p.fill('#gpw1',pw);await p.fill('#gpw2',pw);await p.click('#gatego');
+      try{await p.waitForSelector('#gate',{state:'hidden',timeout:attempt<2?15000:45000});break}
+      catch(e){if(attempt===2)throw new Error('The passcode gate stayed open. Message: '+JSON.stringify(await p.textContent('#gateerr').catch(()=>null))+', button: '+JSON.stringify(await p.textContent('#gatego').catch(()=>null)))}}
+    await p.waitForTimeout(300)}
   else if(await p.isVisible('#lock')){await p.fill('#lockpw',pw);await p.click('#lockgo');await p.waitForSelector('#lock',{state:'hidden',timeout:45000});await p.waitForTimeout(300)}};

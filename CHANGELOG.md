@@ -4,6 +4,23 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-23
+### Added
+- **Sync turns itself on.** Once the app has data and `sync.php` is on your site, the encrypted copy is uploaded automatically; no Connect step. A browser with no data never claims an empty server, and "Turn off" is remembered.
+- **Updates are confirmed with your Portfolio passcode.** No `update.config.php` and no separate password: the install is authorised by a value derived from your passcode (the passcode itself is never sent), checked against the sync copy on your server, with wrong-attempt lockout. `update.config.php` still works if you already have one.
+
+### Changed
+- **Server data files are guarded.** Everything in `sync-data/` is now a PHP file that answers 404 if opened in a browser, even on hosts that ignore `.htaccess`. The data is still ciphertext only. Existing `.json` files from 0.6.x are not read; the first push in this version creates the new files.
+- The Updates page no longer shows the password field or the generated config box.
+
+## [0.6.4] - 2026-11-23
+### Fixed
+- **ICICI statements read as SBI or Union Bank.** Found by examining real ICICI statements locally (nothing from them was kept or committed). Two things in their headers fooled the detection: a branch address that names another bank as a landmark ("ROAD NEAR SBI BANK ..."), which tied with the ICICI website line and won, and another bank's code in a transfer narration near the top of page 2. The bank is now taken from the header of page 1 only, with the bank's own website and a labelled IFSC code counting most, a bank named after NEAR/OPP/BESIDE and similar words ignored, and codes inside narrations never counted. If the header names no bank the first lines of the other pages are used, and if still nothing, the import dialog marks the bank as unsure and asks you to check it.
+- The passcode screen no longer stays on "Securing…" if something goes wrong: any error is shown on the screen and the button comes back. The CI run for 0.6.3 failed once on this screen without saying why; the test helper now retries and reports the screen's message if it ever sticks again.
+
+### Known
+- Older ICICI "Detailed Statement" downloads from internet banking (one account, no summary page) are not read by the statement reader. They still import through the generic table reader, where you pick the account yourself.
+
 ## [0.6.3] - 2026-11-22
 ### Added
 - **Delete one person's data** (Settings, Danger zone): removes the transactions, accounts, investments, vault items and import history of one family member and leaves everyone else untouched, with an option to remove the person too. It shows what will be removed and offers a backup first, so you can start one person over without erasing the whole family.

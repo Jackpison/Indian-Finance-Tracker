@@ -20,20 +20,18 @@ const TYPES={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   await p.click('[data-act=chkupd]');await p.waitForSelector('#upd',{timeout:5000});
   ok(/9\.9\.9/.test(await p.textContent('#upd')),'banner offers the newer version');
   await p.click('[data-act=updx]');ok(!(await p.$('#upd')),'banner can be dismissed');
-  let installBody='',needCfg=true;
+  let installBody='',auth='passcode';
   await p.route('**/update.php',route=>{const b=route.request().postData()||'',inst=/do"\r\n\r\ninstall/.test(b);
-    if(inst&&needCfg)return route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({error:'Installing needs a password.',needconfig:true})});
-    if(inst){installBody=b;if(!/name="token"/.test(b))return route.fulfill({status:403,body:'{}'});return route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,version:'9.9.9'})})}
-    return route.fulfill({contentType:'application/json',body:JSON.stringify({installed:local,latest:'9.9.9',newer:true,notes:'- Test note'})})});
+    if(inst){installBody=b;const m=/name="token"\r\n\r\n([^\r]*)/.exec(b);if(!m||!/^[0-9a-f]{64}$/.test(m[1]))return route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({error:'Wrong passcode.'})});return route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,version:'9.9.9'})})}
+    return route.fulfill({contentType:'application/json',body:JSON.stringify({installed:local,latest:'9.9.9',newer:true,notes:'- Test note',auth,asalt:'dGVzdHNhbHR0ZXN0c2FsdA'})})});
   await p.click('[data-act=updpage]');await p.waitForSelector('[data-act=updcheck]');
-  ok(!(await p.$('#utok')),'no password field before a new version is found');
+  ok(!(await p.$('[data-act=updinstall]')),'no install button before a new version is found');
   await p.click('[data-act=updcheck]');await p.waitForSelector('[data-act=updinstall]');
-  ok(/9\.9\.9/.test(await p.textContent('.setp')),'Check now finds the release without a password');
-  await p.click('[data-act=updinstall]');await p.waitForSelector('text=Enter your update password');ok(true,'install asks for the password first');
-  await p.fill('#utok','x'.repeat(24));await p.click('[data-act=updinstall]');await p.waitForSelector('#cfgtxt');
-  const cfg=await p.inputValue('#cfgtxt');ok(/<\?php/.test(cfg)&&/'token' => '[0-9a-f]{48}'/.test(cfg),'a server with no update password gets a ready-to-paste update.config.php with a fresh password');
-  ok(!/x{24}/.test(cfg)&&(await p.$('[data-act=cfgcopy]'))!==null,'the generated file has its own password and a copy button');
-  needCfg=false;await p.click('[data-act=updinstall]');await p.waitForSelector('text=Updated to v9.9.9');ok(/name="token"/.test(installBody),'install sends the password and reports success');
+  ok(/9\.9\.9/.test(await p.textContent('.setp'))&&/Portfolio passcode/.test(await p.textContent('.setp')),'Check now finds the release and says installing uses the passcode');
+  ok(!(await p.$('#utok')),'there is no separate update password field');
+  await p.click('[data-act=updinstall]');await p.waitForSelector('#pw');await p.fill('#pw',require('./lib').PASS);await p.click('[data-act=pwok]');
+  await p.waitForSelector('text=Updated to v9.9.9',{timeout:30000});ok(/name="token"/.test(installBody),'install sends a passcode-derived token and reports success');
+  ok(!installBody.includes(require('./lib').PASS),'the passcode itself is never sent');
   await p.click('[data-act=updtab][data-v=log]');ok(/Test note/.test(await p.textContent('.setp')),'release notes shown');
   srv.close();h.errors=h.errors.filter(e=>!/Service Worker registration blocked|status of 403/.test(e));await done(h);
 })().catch(e=>{console.error(e);process.exit(1)});

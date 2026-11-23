@@ -46,9 +46,20 @@ const root = path.join(__dirname, '..');
   const noIcici = pages.map((pg, i) => i < 2 ? pg.map(t => ({ ...t, s: t.s.replace(/ICICI Bank/gi, 'Bank').replace(/ICICI/gi, 'I-C') })) : pg);
   const hdr = noIcici.map((pg, i) => i === 0 ? [{ x: 27, y: 790, w: 220, s: 'UPI/shop@sbipay/Payment/SBI PAYMEN' }, { x: 27, y: 780, w: 120, s: 'IFSC: ICIC0001234' }, ...pg] : pg);
   assert.strictEqual(S.parse(hdr).bank, 'ICICI', 'the IFSC code identifies the bank when the name is not printed');
-  // Real statements carry other banks' IFSC codes and names inside NEFT/IMPS narrations. They must never outvote the header.
-  const noisy = pages.map((pg, i) => i < 2 ? [...pg, ...[1, 2, 3, 4, 5, 6].map(k => ({ x: 120, y: 60 + k * 9, w: 300, s: 'NEFT-HDFC0001234-ACME PAYMENTS HDFC BANK LTD ' + k }))] : pg);
+  // Real statements carry other banks' IFSC codes and names inside NEFT/IMPS narrations, which must never outvote the header.
+  const noisy = pages.map((pg, i) => i >= 1 ? [...pg, ...[1, 2, 3, 4, 5, 6].map(k => ({ x: 120, y: 60 + k * 9, w: 300, s: 'NEFT-HDFC0001234-ACME PAYMENTS HDFC BANK LTD ' + k }))] : pg);
   assert.strictEqual(S.parse(noisy).bank, 'ICICI', 'counterparty IFSC codes and bank names in narrations do not decide the bank');
+  // The layout that fooled earlier versions (fictional text): the issuer's name is not printed as text, its website is;
+  // the branch address names another bank as a landmark; the top of page 2 starts with another bank's code.
+  const strip = (s) => s.replace(/ICICI Bank Limited/gi, 'Limited').replace(/ICICI/gi, '');
+  const trap = pages.map((pg, i) => i === 0
+    ? [...pg.map(t => ({ ...t, s: strip(t.s) })), { x: 27, y: 745, w: 300, s: 'TESTVILLE ROAD NEAR SBI BANK SAMPLE MARKET  Visit www.icicibank.com' }, { x: 27, y: 738, w: 200, s: 'Your Base Branch: SAMPLE TOWN' }]
+    : i === 1 ? [{ x: 27, y: 800, w: 200, s: '000000000000-UBIN0000000' }, { x: 27, y: 795, w: 200, s: '000000000001-HDFC0000000' }, { x: 27, y: 790, w: 200, s: '000000000002-ESFB0000000' }, ...pg] : pg);
+  const tr = S.parse(trap);
+  assert.strictEqual(tr.bank, 'ICICI', 'website beats a landmark bank in the address and codes in narrations (got ' + tr.bank + ')');
+  assert.strictEqual(tr.bankSure, true, 'website evidence counts as sure');
+  const justLandmark = pages.map((pg, i) => i === 0 ? [...pg.map(t => ({ ...t, s: strip(t.s) })), { x: 27, y: 745, w: 300, s: 'SAMPLE ROAD NEAR SBI BANK MARKET' }] : pg);
+  assert.notStrictEqual(S.parse(justLandmark).bankSure, true, 'a bank named only as an address landmark is not accepted as the issuer');
   assert.strictEqual(S.canonBank('ICICI Bank Ltd'), 'ICICI', 'ICICI Bank Ltd');
   assert.strictEqual(S.canonBank('hdfc bank'), 'HDFC', 'hdfc bank');
   assert.strictEqual(S.canonBank('State Bank of India'), 'SBI', 'State Bank of India');

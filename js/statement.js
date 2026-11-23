@@ -104,26 +104,39 @@
     let x = String(b || '').trim().toUpperCase().replace(/\s+/g, ' ').replace(/\s+(LTD\.?|LIMITED)$/, '');
     return ALIAS[x] || x;
   }
-  // The issuing bank is printed at the top of the page. The middle of a page is narrations, which carry other
-  // banks' names and IFSC codes (NEFT/IMPS counterparties), so only the first lines of each page count. The whole
-  // text is used, weakly, only when the page tops name no bank at all.
+  // The issuing bank is identified from the header of page 1: its own website, a labelled IFSC code or its name.
+  // A bank named as a landmark in an address ("NEAR SBI BANK") is not the issuer, and bank codes inside
+  // narrations (NEFT/IMPS counterparties further down the page and on later pages) are never evidence.
+  const HOSTS = [[/icicibank\./, 'ICICI'], [/hdfcbank\./, 'HDFC'], [/(?:^|[^a-z])sbi\.co\.in|onlinesbi/, 'SBI'], [/axisbank\./, 'AXIS'], [/kotak\./, 'KOTAK'], [/idfcfirstbank\./, 'IDFC FIRST'],
+    [/yesbank\./, 'YES BANK'], [/bankofbaroda\./, 'BANK OF BARODA'], [/pnbindia\./, 'PUNJAB NATIONAL'], [/canarabank\./, 'CANARA'], [/unionbankofindia\./, 'UNION BANK'], [/indusind\./, 'INDUSIND'],
+    [/federalbank\./, 'FEDERAL BANK'], [/(?<!union)bankofindia\./, 'BANK OF INDIA'], [/idbibank\./, 'IDBI'], [/(?:^|[^a-z])sc\.com/, 'STANDARD CHARTERED'], [/hsbc\./, 'HSBC'], [/rblbank\./, 'RBL'], [/aubank\./, 'AU SMALL FINANCE']];
+  const LANDMARK = /\b(?:NEAR|NR|OPP|OPPOSITE|BESIDE|BEHIND|ADJ|ADJACENT|NEXT TO|ABOVE|BELOW|AT)\.?\s+(?:THE\s+)?$/i;
   function detectBank(pageLines) {
-    const norm = (t) => canonBank(t);
     const re = new RegExp(BANKS.source, 'gi');
     const clean = (arr) => arr.map((t) => t.replace(/\S*@\S*/g, ' ')).filter((t) => !/\bUPI\//i.test(t));
-    const pick = (arr, wIfsc, wName, cap) => {
-      const score = new Map(), order = [];
-      const add = (b, w) => { if (!score.has(b)) { score.set(b, 0); order.push(b); } score.set(b, Math.min(cap, score.get(b) + w)); };
-      for (const m of arr.join('\n').matchAll(/\b([A-Z]{4})0[A-Z0-9]{6}\b/g)) if (IFSC[m[1]]) add(IFSC[m[1]], wIfsc);
-      for (const t of arr) for (const m of t.matchAll(re)) add(norm(m[0]), wName);
-      let best = '', top = 0;
-      for (const b of order) if (score.get(b) > top) { best = b; top = score.get(b); }
-      return best;
-    };
-    const tops = pageLines.flatMap((ls, i) => clean(ls.slice(0, i === 0 ? 14 : 6)));
-    // the letterhead (first lines of page 1) settles it when it names a bank, then the tops of every page
-    const strong = pick(clean(pageLines.length ? pageLines[0].slice(0, 4) : []), 10, 4, 1e3) || pick(tops, 10, 4, 1e3);
-    return { bank: strong || pick(clean(pageLines.flat()), 2, 1, 6), sure: !!strong };
+    const score = new Map(), order = [];
+    const add = (b, w) => { if (!b) return; if (!score.has(b)) { score.set(b, 0); order.push(b); } score.set(b, score.get(b) + w); };
+    const names = (lines, wFirst, wRest) => lines.forEach((line, i) => { for (const m of line.matchAll(re)) {
+      if (LANDMARK.test(line.slice(Math.max(0, m.index - 14), m.index))) continue; // an address landmark
+      add(canonBank(m[0]), i < 4 ? wFirst : wRest); } });
+    const head = clean((pageLines[0] || []).slice(0, 14));
+    head.forEach((line) => {
+      const low = line.toLowerCase();
+      for (const [rx, b] of HOSTS) if (rx.test(low)) add(b, 20);
+      for (const m of line.matchAll(/IFS?C(?:\s*Code)?\s*[:\-]?\s*([A-Z]{4})0[A-Z0-9]{6}/gi)) if (IFSC[m[1].toUpperCase()]) add(canonBank(IFSC[m[1].toUpperCase()]), 20);
+      for (const m of line.matchAll(/\b([A-Z]{4})0[A-Z0-9]{6}\b/g)) if (IFSC[m[1]]) add(canonBank(IFSC[m[1]]), 4);
+    });
+    names(head, 6, 3);
+    const best = () => { let b = '', top = 0; for (const x of order) if (score.get(x) > top) { b = x; top = score.get(x); } return b; };
+    let bank = best();
+    if (bank) return { bank, sure: true };
+    // nothing in the header of page 1: look at the first lines of the other pages, names only
+    pageLines.slice(1).forEach((ls) => names(clean(ls.slice(0, 4)), 2, 2));
+    bank = best();
+    if (bank) return { bank, sure: true };
+    // last resort over the whole text, flagged as unsure so the import dialog asks you to check
+    names(clean(pageLines.flat()), 1, 1);
+    return { bank: best(), sure: false };
   }
 
   function parse(pages) {

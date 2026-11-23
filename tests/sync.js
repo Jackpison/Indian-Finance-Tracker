@@ -28,6 +28,7 @@ const post = async (body) => { const r = await fetch(BASE + 'sync.php', { method
   ok(await g.isVisible('#gate'), 'reloading without a passcode shows the gate again');
   await G.browser.close();
 
+  ok((await post({ a: 'info' })).j.exists === false, 'a new browser with no data does not claim the server');
   console.log('Settings');
   await a.click('[data-act=settings]'); await a.waitForSelector('.setp');
   ok(!(await a.$('[data-act=offlock]')), 'no Turn off passcode button');
@@ -55,25 +56,23 @@ const post = async (body) => { const r = await fetch(BASE + 'sync.php', { method
   ok(/Manage accounts and cards/.test(await a.textContent('#main')) && (await a.$('#main input[data-change=aname]')) !== null, 'accounts and cards are managed on Portfolio');
 
   console.log('Sync to a real sync.php');
-  ok((await post({ a: 'info' })).j.exists === false, 'server starts empty');
-  await a.click('[data-act=settings]'); await a.waitForSelector('[data-act=syncconnect]');
-  await a.click('[data-act=syncconnect]'); await a.waitForSelector('#pw'); await a.fill('#pw', 'wrong wrong wrong'); await a.click('[data-act=pwok]');
-  await a.waitForTimeout(1500);
-  ok((await post({ a: 'info' })).j.exists === false, 'a wrong passcode does not connect');
-  await a.click('[data-act=syncconnect]'); await a.waitForSelector('#pw'); await a.fill('#pw', PASS); await a.click('[data-act=pwok]');
-  await a.waitForSelector('[data-act=syncnow]', { timeout: 30000 });
+  // Sync turns itself on once there is data and the server is empty. Loading the demo data above is that first data.
+  for (let k = 0; k < 40 && !(await post({ a: 'info' })).j.exists; k++) await new Promise(r => setTimeout(r, 500));
+  await a.click('[data-act=settings]'); await a.waitForSelector('[data-act=syncnow]', { timeout: 30000 });
+  ok(/On/.test(await a.textContent('#syncst')), 'sync switched itself on once there was data and the server was empty');
   const info = (await post({ a: 'info' })).j;
-  ok(info.exists && info.rev === 1, 'first push stored revision 1');
-  for (let k = 0; k < 40 && !(fs.existsSync(path.join(site, 'sync-data/blob.json')) && fs.statSync(path.join(site, 'sync-data/blob.json')).size > 1000); k++) await new Promise(r => setTimeout(r, 250));
-  const stored = fs.readFileSync(path.join(site, 'sync-data/blob.json'), 'utf8');
+  ok(info.exists && info.rev >= 1, 'the first push is on the server (revision ' + info.rev + ')');
+  for (let k = 0; k < 40 && !(fs.existsSync(path.join(site, 'sync-data/blob.php')) && fs.statSync(path.join(site, 'sync-data/blob.php')).size > 1000); k++) await new Promise(r => setTimeout(r, 250));
+  const stored = fs.readFileSync(path.join(site, 'sync-data/blob.php'), 'utf8').split('\n').slice(1).join('\n');
   { // Search the decoded bytes, not the base64 text: a short word can appear in random base64 by chance.
     const bl = JSON.parse(stored), raw = Buffer.from(bl.ct, 'base64'), words = ['SWIGGY', 'SALARY', 'Aarav', 'Meera', 'Anaya', 'HDFC', '"tx"', '"desc"'];
     ok(raw.length > 1000 && !words.some(w => raw.includes(w)) && !words.some(w => Object.keys(bl).concat(Object.keys(bl.lock)).includes(w)), 'the file on the server is ciphertext, none of the data is readable');
     ok(Object.keys(bl).sort().join() === 'ct,enc,format,iv,lock', 'the stored object has only ciphertext, iv and the key parameters');
   }
-  const meta = fs.readFileSync(path.join(site, 'sync-data/meta.json'), 'utf8');
-  ok(!meta.includes(PASS) && /"hash":"[0-9a-f]{64}"/.test(meta), 'the server keeps only a hash of the token, never the passcode');
+  const meta = fs.readFileSync(path.join(site, 'sync-data/meta.php'), 'utf8');
+  ok(meta.startsWith('<?php http_response_code(404)') && !meta.includes(PASS) && /"hash":"[0-9a-f]{64}"/.test(meta), 'the server keeps only a hash of the token, never the passcode');
   ok(fs.existsSync(path.join(site, 'sync-data/.htaccess')), 'the data folder is closed to the web');
+  for (const f of ['blob.php', 'meta.php']) ok((await fetch(BASE + 'sync-data/' + f)).status === 404, 'sync-data/' + f + ' answers 404 even without .htaccess');
   ok((await post({ a: 'pull', token: '0'.repeat(64) })).s === 403, 'pulling with a wrong token is refused');
   ok((await post({ a: 'push', token: 'f'.repeat(64), base: 1, blob: { ct: 'x', iv: 'y', lock: { salt: 's', iter: 1 } } })).s === 403, 'pushing with a wrong token is refused');
   ok((await post({ a: 'pull', token: 'zz' })).s === 400, 'a malformed token is rejected');

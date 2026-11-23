@@ -11,6 +11,9 @@
  * If your host is not Apache, block web access to the sync-data folder in its configuration.
  */
 declare(strict_types=1);
+const GUARD = "<?php http_response_code(404); exit; ?>\n"; // every data file is a PHP file that answers 404, even where .htaccess is ignored
+function gread(string $f) { $raw = is_file($f) ? (string)file_get_contents($f) : ''; $n = strpos($raw, "\n"); return $n === false ? null : json_decode(substr($raw, $n + 1), true); }
+function gwrite(string $f, $data): bool { return file_put_contents($f, GUARD . str_replace('<', '\\u003C', json_encode($data))) !== false; }
 const MAX_BYTES = 40 * 1024 * 1024;
 const KEEP = 6;            // older versions kept so a bad push can be undone by hand
 const FAIL_MAX = 8;        // wrong-passcode attempts allowed ...
@@ -41,13 +44,13 @@ if (!is_dir($dir)) {
 @file_put_contents($dir . '/index.html', '');
 @file_put_contents($dir . '/web.config', '<configuration><system.webServer><authorization><deny users="*"/></authorization></system.webServer></configuration>');
 
-$blobF = $dir . '/blob.json';
-$metaF = $dir . '/meta.json';
+$blobF = $dir . '/blob.php';
+$metaF = $dir . '/meta.php';
 $lockF = $dir . '/.lock';
 $fh = fopen($lockF, 'c');
 if (!$fh || !flock($fh, LOCK_EX)) out(['error' => 'Busy'], 503);
 
-$meta = is_file($metaF) ? json_decode((string)file_get_contents($metaF), true) : null;
+$meta = gread($metaF);
 if (!is_array($meta)) $meta = null;
 $act = (string)($req['a'] ?? '');
 
@@ -61,16 +64,16 @@ if (!preg_match('/^[0-9a-f]{64}$/', $tok)) out(['error' => 'Bad token'], 400);
 $hash = hash('sha256', $tok);
 
 if ($meta) {
-    $failF = $dir . '/fails.json';
+    $failF = $dir . '/fails.php';
     $ip = $_SERVER['REMOTE_ADDR'] ?? '?';
-    $fails = is_file($failF) ? (json_decode((string)file_get_contents($failF), true) ?: []) : [];
+    $fails = gread($failF) ?: [];
     $now = time();
     $mine = array_values(array_filter($fails[$ip] ?? [], fn($t) => $t > $now - FAIL_WINDOW));
     if (count($mine) >= FAIL_MAX) out(['error' => 'Too many wrong attempts. Wait a few minutes.'], 429);
     if (!hash_equals($meta['hash'], $hash)) {
         $mine[] = $now; $fails[$ip] = $mine;
         foreach ($fails as $k => $v) if (!array_filter($v, fn($t) => $t > $now - FAIL_WINDOW)) unset($fails[$k]);
-        @file_put_contents($failF, json_encode($fails));
+        @gwrite($failF, $fails);
         usleep(400000);
         out(['error' => 'Wrong passcode'], 403);
     }
@@ -78,7 +81,7 @@ if ($meta) {
 
 if ($act === 'pull') {
     if (!$meta) out(['error' => 'Nothing stored yet'], 404);
-    out(['rev' => $meta['rev'], 'at' => $meta['at'], 'blob' => json_decode((string)file_get_contents($blobF), true)]);
+    out(['rev' => $meta['rev'], 'at' => $meta['at'], 'blob' => gread($blobF)]);
 }
 
 if ($act === 'push') {
@@ -90,8 +93,8 @@ if ($act === 'push') {
     if ($meta) { // keep the previous versions
         $h = $dir . '/history';
         if (!is_dir($h)) @mkdir($h, 0700, true);
-        @copy($blobF, $h . '/rev-' . $cur . '.json');
-        $old = glob($h . '/rev-*.json') ?: [];
+        @copy($blobF, $h . '/rev-' . $cur . '.php');
+        $old = glob($h . '/rev-*.php') ?: [];
         usort($old, fn($a, $b) => filemtime($a) <=> filemtime($b));
         while (count($old) > KEEP) @unlink(array_shift($old));
     }
@@ -104,8 +107,8 @@ if ($act === 'push') {
     }
     $rev = $cur + 1;
     $tmp = $blobF . '.tmp';
-    if (file_put_contents($tmp, json_encode($blob)) === false || !rename($tmp, $blobF)) out(['error' => 'Could not write on the server'], 500);
-    file_put_contents($metaF, json_encode(['rev' => $rev, 'at' => time(), 'hash' => $newHash, 'asalt' => $asalt]));
+    if (!gwrite($tmp, $blob) || !rename($tmp, $blobF)) out(['error' => 'Could not write on the server'], 500);
+    gwrite($metaF, ['rev' => $rev, 'at' => time(), 'hash' => $newHash, 'asalt' => $asalt]);
     out(['ok' => true, 'rev' => $rev]);
 }
 

@@ -87,8 +87,8 @@ console.log('Updater');
 {const zip=fs.readFileSync(path.join(ROOT,'deploy/make-zip.sh'),'utf8'),php=fs.readFileSync(path.join(ROOT,'deploy/update.php'),'utf8');
  ok(/update\.php/.test(zip)&&/update\.config\.example\.php/.test(zip),'the release ZIP carries update.php and its example config');
  ok(/DEFAULT_REPO/.test(php),'checking works without a config file');
- const gate=php.indexOf("if (!$configured) jout"),cmp=php.indexOf("hash_equals((string)$cfg['token']");
- ok(gate>0&&cmp>gate,'installing without a configured password is refused before any password is compared');}
+ const gate=php.indexOf("if (!$sm && !$configured) jout"),cmp=php.indexOf("hash_equals((string)$sm['hash']");
+ ok(gate>0&&cmp>gate,'installing with neither a sync copy nor a configured password is refused before anything is compared');}
 console.log('Bank spelling, bank hint and per-person erase');
 const fam={format:'ift-backup-1',enc:false,data:{tx:[
  {id:'x1',d:'2022-03-01',desc:'OLD SHOP',amt:-100,acct:'q1',m:'m1'},{id:'x2',d:'2026-11-10',desc:'NEW SHOP',amt:-200,acct:'q2',m:'m1'},
