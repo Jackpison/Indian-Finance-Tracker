@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.9.0'; /* keep in sync with version.json and package.json: run scripts/bump.sh */
+const VERSION='0.9.1'; /* keep in sync with version.json and package.json: run scripts/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};

@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-23
+### Fixed
+- The Linux desktop build now also produces the `.deb` (it stopped for lack of a project homepage, so the Linux files were missing from 0.9.0). Windows and Mac files were already built.
+
 ## [0.9.0] - 2026-11-23
 ### Added
 - **Desktop app** for Windows (`.exe` installer and portable), Mac (`.dmg`) and Linux (`.AppImage`, `.deb`), built by the release workflow from the same files. Same encryption, same screens, its own window and no network of its own. Not code signed, so Windows and macOS ask you to confirm once. It keeps its own data (move it with a backup file) and can sync with your own server: type the address in Settings, Sync to your server.
