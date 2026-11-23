@@ -4,7 +4,10 @@
   "version": "0.9.0",
   "private": true,
   "description": "Portfolio: a private money dashboard for Indian families, as a desktop app",
-  "author": "Portfolio",
+  "author": {
+    "name": "Portfolio",
+    "email": "noreply@users.noreply.github.com"
+  },
   "license": "MIT",
   "main": "main.js",
   "scripts": {
@@ -20,13 +23,66 @@
     "appId": "io.github.jackpison.portfolio",
     "productName": "Portfolio",
     "copyright": "Portfolio",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "serve.js", "package.json", "build/icon.png", "app/**/*"],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "serve.js",
+      "package.json",
+      "build/icon.png",
+      "app/**/*"
+    ],
     "artifactName": "Portfolio-${version}-${os}-${arch}.${ext}",
-    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }] },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "artifactName": "Portfolio-${version}-Setup.${ext}" },
-    "portable": { "artifactName": "Portfolio-${version}-Portable.${ext}" },
-    "mac": { "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }], "category": "public.app-category.finance", "identity": null },
-    "linux": { "target": ["AppImage", "deb"], "category": "Office", "maintainer": "Portfolio" }
-  }
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Portfolio-${version}-Setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "Portfolio-${version}-Portable.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.finance",
+      "identity": null
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Office",
+      "maintainer": "Portfolio",
+      "syncDesktopName": true
+    }
+  },
+  "homepage": "https://github.com/Jackpison/Indian-Finance-Tracker",
+  "desktopName": "portfolio.desktop"
 }
