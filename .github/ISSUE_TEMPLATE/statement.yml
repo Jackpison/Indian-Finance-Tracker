@@ -1,0 +1,18 @@
+name: Statement not read correctly
+description: A bank or NPS statement was misread or created nothing
+labels: [statement]
+body:
+  - type: markdown
+    attributes:
+      value: "**Never attach a real statement here.** Describe the layout instead, or redact names, numbers and balances first."
+  - type: input
+    id: bank
+    attributes: { label: Bank or product, placeholder: "ICICI savings, NPS Tier I, ..." }
+    validations: { required: true }
+  - type: textarea
+    id: layout
+    attributes: { label: What the statement looks like (header lines, column names, how dates and amounts are written) }
+    validations: { required: true }
+  - type: textarea
+    id: result
+    attributes: { label: What the import showed, and what it should have shown }

@@ -1,4 +1,4 @@
-# caddy run --config deploy/Caddyfile   (HTTPS is automatic for a real domain)
+# caddy run --config deploy/hosting/Caddyfile   (HTTPS is automatic for a real domain)
 finance.example.com {
   root * /var/www/portfolio
   # Refuse bots, scrapers and scripted clients (robots.txt stays readable).

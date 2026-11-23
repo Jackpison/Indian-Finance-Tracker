@@ -43,12 +43,12 @@ for(const [v,sel] of [['tx','.txr .tg.own'],['bal','.lr .tg.own'],['inv','.tbl .
 console.log('Bots and scrapers');
 const robots=fs.readFileSync(path.join(ROOT,'robots.txt'),'utf8');
 ok(/User-agent: \*\s+Disallow: \//.test(robots)&&/GPTBot/.test(robots)&&/ClaudeBot/.test(robots),'robots.txt bans all crawlers, AI ones by name');
-for(const f of ['deploy/htaccess.txt','deploy/nginx.conf','deploy/Caddyfile'])ok(/gptbot/i.test(fs.readFileSync(path.join(ROOT,f),'utf8')),f+' refuses known bots');
-ok(/'robots\.txt'/.test(fs.readFileSync(path.join(ROOT,'deploy/update.php'),'utf8')),'update.php may install robots.txt');
+for(const f of ['deploy/hosting/htaccess.txt','deploy/hosting/nginx.conf','deploy/hosting/Caddyfile'])ok(/gptbot/i.test(fs.readFileSync(path.join(ROOT,f),'utf8')),f+' refuses known bots');
+ok(/'robots\.txt'/.test(fs.readFileSync(path.join(ROOT,'deploy/php/update.php'),'utf8')),'update.php may install robots.txt');
 console.log('Cache busting');
 {const html=fs.readFileSync(path.join(ROOT,'index.html'),'utf8'),ver=JSON.parse(fs.readFileSync(path.join(ROOT,'version.json'))).version;
  for(const f of ['css/app.css','js/theme.js','js/statement.js','js/app.js'])ok(html.includes(f+'?v='+ver+'"'),f+' is loaded with ?v='+ver);
- ok(/FilesMatch "\\.\(html\|json\|js\|css\|webmanifest\)\$"/.test(fs.readFileSync(path.join(ROOT,'deploy/htaccess.txt'),'utf8')),'.htaccess revalidates JS and CSS on each load')}
+ ok(/FilesMatch "\\.\(html\|json\|js\|css\|webmanifest\)\$"/.test(fs.readFileSync(path.join(ROOT,'deploy/hosting/htaccess.txt'),'utf8')),'.htaccess revalidates JS and CSS on each load')}
 console.log('Wrong bank and owner after importing old statements (fictional family)');
 const mixAccts=[{id:'a1',name:'SBI Savings ••0872',type:'bank',member:'m1',bank:'SBI',no:'0872',bal:192367,balAsOf:'2024-03-30'},
  {id:'a2',name:'ICICI Savings ••0872',type:'bank',member:'m2',bank:'ICICI',no:'0872',bal:86030,balAsOf:'2026-11-16'}];
@@ -84,8 +84,8 @@ await p.selectOption('#imem','m2');await p.click('[data-act=stmtgo]');await p.wa
 ok(/already recorded under Asha/.test(await p.textContent('#toast')),'importing an existing account under someone else is refused with a clear message');
 await p.click('[data-act=impcancel]');await p.waitForTimeout(300);
 console.log('Updater');
-{const zip=fs.readFileSync(path.join(ROOT,'deploy/make-zip.sh'),'utf8'),php=fs.readFileSync(path.join(ROOT,'deploy/update.php'),'utf8');
- ok(/sync\.php/.test(zip)&&!/cp deploy\/update\.php/.test(zip),'the release ZIP carries sync.php and leaves the updater files out (they ship as a separate release asset)');
+{const zip=fs.readFileSync(path.join(ROOT,'scripts/make-zip.sh'),'utf8'),php=fs.readFileSync(path.join(ROOT,'deploy/php/update.php'),'utf8');
+ ok(/sync\.php/.test(zip)&&!/cp [^\n]*update\.php/.test(zip),'the release ZIP carries sync.php and leaves the updater files out (they ship as a separate release asset)');
  ok(/DEFAULT_REPO/.test(php),'checking works without a config file');
  const gate=php.indexOf("if (!$sm && !$configured) jout"),cmp=php.indexOf("hash_equals((string)$sm['hash']");
  ok(gate>0&&cmp>gate,'installing with neither a sync copy nor a configured password is refused before anything is compared');}
@@ -128,6 +128,23 @@ const famNames=()=>p.$$eval('.setp input[data-change=mname]',e=>e.map(x=>x.value
 ok((await famNames()).includes('Asha'),'Asha stays in the family unless you choose to remove her');
 await p.click('[data-act=memwipe]');await p.waitForSelector('#mwm');await p.selectOption('#mwm','m1');await p.check('#mwr');await p.click('[data-act=mwgo]');await p.waitForTimeout(500);
 ok(!(await famNames()).includes('Asha')&&(await famNames()).includes('Ravi'),'"also remove from the family" removes the person too');
+console.log('Needs attention and People');
+const att={format:'ift-backup-1',enc:false,data:{tx:[
+ {id:'g1',d:'2026-08-05',desc:'SHOP A',amt:-500,acct:'ga',m:'m1',cat:'Shopping'},{id:'g2',d:'2026-10-05',desc:'SHOP B',amt:-700,acct:'ga',m:'m1',cat:'Shopping'},
+ {id:'g3',d:'2026-11-05',desc:'SHOP C',amt:-300,acct:'ga',m:'m1',cat:'Shopping'},{id:'g4',d:'2026-11-06',desc:'PAY',amt:9000,acct:'ga',m:'m1',cat:'Income'},
+ {id:'g5',d:'2026-11-07',desc:'SHOP D',amt:-400,acct:'gb',m:'m2',cat:'Shopping'},{id:'g6',d:'2026-11-08',desc:'PAY2',amt:5000,acct:'gb',m:'m2',cat:'Income'}],
+ hold:[{id:'h1',name:'TEST FD ••1234',type:'FD / RD',m:'m1',invested:100000,value:100000,maturity:'2026-12-10'}],uploads:[],vault:[],
+ members:[{id:'m1',name:'Asha',color:'#3B5BFF'},{id:'m2',name:'Ravi',color:'#E0457B'}],
+ accts:[{id:'ga',name:'TEST Savings ••1111',type:'bank',member:'m1',no:'1111',bank:'TEST',bal:1000,balAsOf:'2026-11-08'},{id:'gb',name:'TEST Savings ••2222',type:'bank',member:'m2',no:'2222',bank:'TEST',bal:500,balAsOf:'2026-11-08'}],rules:{},cur:'INR',order:''}};
+await restoreBk(att);
+await p.click('#tabs [data-v=overview]');await p.waitForSelector('.reviewq');
+const ovt=await p.textContent('#main');
+ok(/TEST Savings ••1111: no transactions in Sep 2026/.test(ovt),'a month with no transactions between two others is flagged as a missing statement');
+ok(/1 deposit maturing within 30 days/.test(ovt),'a deposit maturing within 30 days is flagged');
+await p.click('#tabs [data-v=ana]');await p.click('button:has-text("People")');await p.waitForSelector('#main .tbl');
+const pt=await p.textContent('#main');
+ok(/Asha/.test(pt)&&/Ravi/.test(pt)&&/Savings rate/.test(pt)&&/Spent/.test(pt),'Analytics has a People view with spending, income and savings rate per person');
+ok(/83%/.test(pt)&&/92%/.test(pt),'savings rate is calculated per person (Asha 83%, Ravi 92%)');
 console.log('Offline shell');
 for(const n of ['sw.js','manifest.webmanifest']){ok(fs.existsSync(path.join(ROOT,n)),n+' exists')}
 JSON.parse(fs.readFileSync(path.join(ROOT,'manifest.webmanifest')));ok(true,'manifest is valid JSON');

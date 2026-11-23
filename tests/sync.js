@@ -6,7 +6,7 @@ const { launch, ok, done, ROOT, PASS, loadDemo } = require('./lib');
 const site = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-site-'));
 for (const f of ['index.html', 'robots.txt', 'version.json', 'sw.js', 'manifest.webmanifest']) fs.copyFileSync(path.join(ROOT, f), path.join(site, f));
 for (const d of ['css', 'js', 'assets', 'vendor']) fs.cpSync(path.join(ROOT, d), path.join(site, d), { recursive: true });
-fs.copyFileSync(path.join(ROOT, 'deploy/sync.php'), path.join(site, 'sync.php'));
+fs.copyFileSync(path.join(ROOT, 'deploy/php/sync.php'), path.join(site, 'sync.php'));
 const PORT = 8123 + Math.floor(Math.random() * 500), BASE = `http://127.0.0.1:${PORT}/`;
 const php = cp.spawn('php', ['-S', `127.0.0.1:${PORT}`, '-t', site], { stdio: 'ignore', env: { ...process.env, PHP_CLI_SERVER_WORKERS: '4' } });
 const post = async (body) => { const r = await fetch(BASE + 'sync.php', { method: 'POST', body: JSON.stringify(body) }); return { s: r.status, j: await r.json().catch(() => null) }; };

@@ -1,7 +1,7 @@
 name: Release
 
 # Publish a release by pushing a version tag:
-#   deploy/bump.sh 1.1.0   # sets the version, then edit CHANGELOG.md and commit
+#   scripts/bump.sh 1.1.0   # sets the version, then edit CHANGELOG.md and commit
 #   git tag v1.1.0 && git push origin main --tags
 on:
   push:
@@ -33,7 +33,7 @@ jobs:
           P=$(sed -n 's/^  "version": *"\([^"]*\)".*/\1/p' package.json)
           J=$(sed -n "s/^const VERSION='\([^']*\)'.*/\1/p" js/app.js)
           echo "tag=$TAG version.json=$V package.json=$P app.js=$J"
-          [ "$TAG" = "v$V" ] && [ "$V" = "$P" ] && [ "$V" = "$J" ] || { echo "::error::Tag and versions do not match. Run deploy/bump.sh and re-tag."; exit 1; }
+          [ "$TAG" = "v$V" ] && [ "$V" = "$P" ] && [ "$V" = "$J" ] || { echo "::error::Tag and versions do not match. Run scripts/bump.sh and re-tag."; exit 1; }
           grep -q "^## \[$V\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no section for $V"; exit 1; }
           echo "version=$V" >> "$GITHUB_OUTPUT"
 
@@ -47,7 +47,7 @@ jobs:
       - run: npm test
 
       - name: Build ZIP
-        run: ./deploy/make-zip.sh "portfolio-v${{ steps.ver.outputs.version }}.zip"
+        run: ./scripts/make-zip.sh "portfolio-v${{ steps.ver.outputs.version }}.zip"
 
       - name: Write release notes (changelog + install + checksum)
         run: |
@@ -80,7 +80,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ steps.ver.outputs.version }}"
-          cp deploy/update.php update.php
+          cp deploy/php/update.php update.php
           FILES="portfolio-$TAG.zip portfolio-$TAG.zip.sha256 update.php"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" $FILES --clobber

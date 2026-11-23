@@ -4,6 +4,16 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-23
+### Added
+- **Needs attention** on Overview: one card per thing worth a look. Transactions without a category, **months with no transactions** between two others on an account (usually a missing statement), **deposits maturing within 30 days**, and accounts whose statement is more than 45 days old, each with a button that takes you there.
+- **Analytics, People:** spending per month for each family member over the last 6 months, plus income and savings rate (income minus spending, as a share of income; transfers between your own accounts are left out).
+- Project notes for working on the repo: `CLAUDE.md`, `docs/NOTES.md`, `CONTRIBUTING.md`, `SECURITY.md` and issue templates for bugs and statements that were read wrongly (they warn against pasting real data).
+
+### Changed
+- **Investments page:** the allocation legend no longer collides with the chart. Upcoming maturities show the owner, the amount and the time left (days, months or years) with a "Soon" tag inside 60 days. Holdings show paise. Gain shows a dash instead of 0.0% for deposits that carry no gain figure, and the top card says "no gain recorded yet".
+- **Repository tidied.** `deploy/` is split into `deploy/hosting/` (.htaccess, nginx, Caddy, Docker, Netlify, Vercel) and `deploy/php/` (`sync.php`, `update.php`, example config). `bump.sh` and `make-zip.sh` moved to `scripts/`. The old `docs/HANDOFF.md` was replaced by `docs/NOTES.md`. The release ZIP layout is unchanged.
+
 ## [0.7.3] - 2026-11-23
 ### Fixed
 - **Installing an update from the Updates page no longer stops with "Unexpected file in release: update.php".** The release ZIP carried `update.php` and an example config that the updater itself refused. The ZIP now holds only the app and `sync.php`, and the updater skips any file it does not manage instead of aborting. `update.php` is a separate release asset for the one-time upload. A new test installs a real ZIP, including an old-style one.

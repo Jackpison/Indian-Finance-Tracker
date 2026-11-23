@@ -22,7 +22,7 @@ No server. No database. No tracking. Your data stays in your browser.</p>
 | **Vault** | Card, account, PAN, Aadhaar and policy numbers. Last four characters show, the rest after you click Reveal. One-click copy. |
 | **Copy anything** | Every transaction can be copied; copy a whole filtered list for Excel or as CSV. |
 | **Data safety** | Every save keeps a mirror copy, the previous version and a daily snapshot, and the app offers to restore them if the main copy goes missing. Another tab can never overwrite newer data. Persistent storage is requested; a banner appears if a save fails. Back up from Settings anyway. |
-| **Updates** | An in-app Updates page installs new GitHub releases onto your own site (needs `deploy/update.php`). |
+| **Updates** | An in-app Updates page installs new GitHub releases onto your own site (needs `update.php` from the release page). |
 | **Themes** | Light, dark and system with an animated reveal. |
 
 <p align="center">
@@ -42,11 +42,11 @@ No server. No database. No tracking. Your data stays in your browser.</p>
 
 You need a domain with cPanel. About five minutes.
 
-1. **Get the files.** Download `portfolio-vX.Y.Z.zip` from the latest [release](../../releases). It already includes `.htaccess`. (Or run `./deploy/make-zip.sh` yourself.)
+1. **Get the files.** Download `portfolio-vX.Y.Z.zip` from the latest [release](../../releases). It already includes `.htaccess`. (Or run `./scripts/make-zip.sh` yourself.)
 2. **Open File Manager** in cPanel and go to `public_html`. Create a folder, for example `finance`. (Use a subdomain's folder if you prefer `finance.yourdomain.com`.)
 3. **Upload** the ZIP into that folder, then right-click it and choose **Extract**.
 4. **Check the layout.** Directly inside the folder you should see `index.html`, `css/`, `js/`, `assets/`, `vendor/`. If there is an extra folder level, move the contents up.
-5. **Security headers.** Copy `deploy/htaccess.txt` to `.htaccess` in the same folder (the ZIP from step 1 already has it). In File Manager settings turn on **Show Hidden Files** to see it. This adds a strict Content Security Policy, forces HTTPS and blocks search engines.
+5. **Security headers.** Copy `deploy/hosting/htaccess.txt` to `.htaccess` in the same folder (the ZIP from step 1 already has it). In File Manager settings turn on **Show Hidden Files** to see it. This adds a strict Content Security Policy, forces HTTPS and blocks search engines.
 6. **HTTPS.** Open **SSL/TLS Status** and run AutoSSL for the domain. The passcode lock needs HTTPS.
 7. **Visit** `https://yourdomain.com/finance/`.
 8. **Protect it** (pick one or both):
@@ -70,10 +70,10 @@ Everything is static files, so any host works. Ready-made configs are in [`deplo
 |---|---|
 | **Open locally** | Double-click `index.html`. Try `samples/hdfc-style-statement.csv`. The passcode lock needs HTTPS or `localhost`. |
 | **GitHub Pages** | Run the **Deploy to GitHub Pages** workflow (Actions tab). A public repo means a public site, so set a passcode and keep your data out of the repo. |
-| **Netlify / Vercel** | Import the repo. Publish directory is the repo root. `deploy/netlify.toml` and `deploy/vercel.json` add headers. |
+| **Netlify / Vercel** | Import the repo. Publish directory is the repo root. `deploy/hosting/netlify.toml` and `deploy/hosting/vercel.json` add headers. |
 | **Cloudflare Pages** | Connect the repo, no build command, output directory `/`. |
-| **Docker** | `docker compose -f deploy/docker-compose.yml up -d --build`, then open `http://localhost:8080`. |
-| **nginx / Caddy** | Serve the folder. See `deploy/nginx.conf` and `deploy/Caddyfile`. |
+| **Docker** | `docker compose -f deploy/hosting/docker-compose.yml up -d --build`, then open `http://localhost:8080`. |
+| **nginx / Caddy** | Serve the folder. See `deploy/hosting/nginx.conf` and `deploy/hosting/Caddyfile`. |
 
 ## Releases and updates
 
@@ -85,14 +85,14 @@ Versions follow [semantic versioning](https://semver.org/) and every change is l
 |---|---|---|
 | **Manual** | none | Download the new ZIP from Releases, upload and extract over the old files in File Manager. |
 | **Automatic over FTPS** | In the GitHub repo: Settings, Secrets and variables, Actions. Add secrets `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`; variables `DEPLOY_FTP=true` and `FTP_DIR` (for example `public_html/finance/`). Use a cPanel FTP account limited to that folder. | Publishing a release uploads it to your site. |
-| **One-click on the server** (also in the app under **Updates**) | Upload `deploy/update.php` next to `index.html`, copy `deploy/update.config.example.php` to `update.config.php`, set a long random token. Open `update.php`, enter the token, Check, Install. | The server downloads the latest release from GitHub, checks its SHA-256, backs up the old files to `.portfolio-backup/` and installs. Delete `update.php` when not in use. |
+| **One-click on the server** (also in the app under **Updates**) | Download `update.php` from the release page (a separate file next to the ZIP) and upload it next to `index.html`, once. Open the app, go to **Updates**, press Check, then Install and enter your Portfolio passcode. It needs the encrypted sync (`sync.php`) to have run once, because the passcode is checked against it. | The server downloads the latest release from GitHub, checks its SHA-256, backs up the old files to `.portfolio-backup/` and installs. It never touches your data, `sync-data/` or `update.config.php`. |
 
 Your data lives in each browser and is never touched by an update. Open tabs notice a new version within seconds of loading (the app compares its version with the site's `version.json`, a same-origin request) and show a **Reload** prompt. **Settings, Check for updates** does it on demand.
 
 **Publishing a release** (maintainers):
 
 ```bash
-deploy/bump.sh 1.1.0                 # sets version.json, package.json and js/app.js
+scripts/bump.sh 1.1.0                 # sets version.json, package.json and js/app.js
 # add a "## [1.1.0] - YYYY-MM-DD" section to CHANGELOG.md, then
 git commit -am "Release 1.1.0" && git tag v1.1.0 && git push origin main --tags
 ```
@@ -128,10 +128,13 @@ js/theme.js       sets the theme before first paint
 vendor/           pdf.js, SheetJS, Inter and Geist Mono fonts (no CDN)
 assets/           logo
 samples/          example statements
-deploy/           .htaccess, nginx, Caddy, Docker, Netlify, Vercel, zip builder, version bump, update.php
-tests/            Playwright end-to-end tests
-docs/screenshots/ README images
-.github/          CI, Pages deploy, Dependabot
+deploy/hosting/   .htaccess, nginx, Caddy, Docker, Netlify, Vercel
+deploy/php/       sync.php (encrypted sync), update.php (one-click updater), update.config.example.php
+scripts/          bump.sh (version everywhere), make-zip.sh (release ZIP)
+tests/            Playwright end-to-end tests (fictional data only)
+docs/             NOTES.md (how it is built and why), screenshots/
+CLAUDE.md         rules for working on this repo
+.github/          CI, release, Pages, Dependabot, issue templates
 ```
 
 CI runs syntax checks, verifies vendored files, blocks external URLs and unsafe patterns, scans for secrets and runs the end-to-end suite.

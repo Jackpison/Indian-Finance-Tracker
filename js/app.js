@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.7.3'; /* keep in sync with version.json and package.json: run deploy/bump.sh */
+const VERSION='0.8.0'; /* keep in sync with version.json and package.json: run scripts/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -391,11 +391,34 @@ const ticksX=(keys,W,m)=>{const N=keys.length,band=(W-m.l-m.r)/Math.max(1,N-1);l
   else{const step=Math.ceil(N/Math.max(2,Math.floor((W-m.l-m.r)/66)));keys.forEach((k,i)=>{if(i%step===0){const [y,mo]=k.split('-').map(Number);s+=`<text x="${m.l+i*band}" y="0" text-anchor="middle" class="xt">${mLabel(y,mo)}</text>`}})}
   return s};
 
+/* ---- things that need a look: uncategorised rows, missing months, deposits maturing soon, old statements ---- */
+const mon=k=>['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+k.slice(5,7)-1]+' '+k.slice(0,4);
+function monthGaps(a){const ms=[...new Set(S.tx.filter(t=>t.acct===a.id).map(t=>t.d.slice(0,7)))].sort();if(ms.length<3)return[];
+  const set=new Set(ms),end=ms[ms.length-1],out=[];let [y,m]=ms[0].split('-').map(Number);
+  for(;;){const k=y+'-'+pad(m);if(k>=end)break;if(!set.has(k))out.push(k);m++;if(m>12){m=1;y++}}
+  const lim=iso(new Date(new Date().getFullYear()-2,new Date().getMonth(),1)).slice(0,7);return out.filter(k=>k>=lim)}
+function attentionItems(nOther){const it=[],today=iso(new Date());
+  if(nOther)it.push({k:'cat',t:`${nOther.toLocaleString('en-IN')} transaction${nOther>1?'s':''} without a category`,d:'Sorting them makes spending charts accurate. The app remembers your choice for similar payments.',b:'Review',act:'cat',v:'Other'});
+  const gaps=S.accts.filter(a=>!a.closed&&a.sub!=='PPF'&&(S.member==='all'||a.member===S.member)).map(a=>[a,monthGaps(a)]).filter(x=>x[1].length);
+  for(const [a,g] of gaps.slice(0,3))it.push({k:'gap',t:`${a.name}: no transactions in ${g.slice(0,3).map(mon).join(', ')}${g.length>3?` and ${g.length-3} more`:''}`,d:'A month with nothing between two statements usually means a statement is missing. Import it so totals and balances stay right.',b:'Import',act:'view',v:'up'});
+  const soon=S.hold.filter(h=>inMember(h)&&h.maturity&&h.maturity>=today&&daysBetween(today,h.maturity)<=30);
+  if(soon.length)it.push({k:'mat',t:`${soon.length} deposit${soon.length>1?'s':''} maturing within 30 days (${money(soon.reduce((x,h)=>x+h.value,0))})`,d:soon.slice(0,3).map(h=>`${h.name} on ${fd(h.maturity)}`).join(' · '),b:'Open',act:'view',v:'inv'});
+  const old=S.accts.filter(a=>!a.closed&&a.balAsOf&&(S.member==='all'||a.member===S.member)&&daysBetween(a.balAsOf,today)>45);
+  if(old.length)it.push({k:'old',t:`${old.length} account${old.length>1?'s have':' has'} an old statement`,d:'Balances are from more than 45 days ago. Import the latest statement.',b:'Open',act:'view',v:'bal'});
+  return it}
+function attentionCards(nOther){return attentionItems(nOther).map(i=>`<div class="card reviewq"><div><b>${esc(i.t)}</b><span>${esc(i.d)}</span></div><button class="btn sm primary" data-act="${i.act}" data-v="${i.v}">${i.b}</button></div>`).join('')}
+/* ===== People: income, spending and savings rate per person ===== */
+function anaPeople(rg){const to=rg.to<rg.mx?rg.to:rg.mx,keys=monthKeys(iso(new Date(+to.slice(0,4),+to.slice(5,7)-6,1)),to).slice(-6);
+  const rows=S.members.map(m=>{const ms=monthStats(S.tx.filter(t=>t.m===m.id)),sp=keys.map(k=>(ms[k]||{sp:0}).sp),inc=keys.reduce((x,k)=>x+(ms[k]||{inc:0}).inc,0),tot=sp.reduce((x,y)=>x+y,0);
+    return{m,sp,inc,tot,rate:inc>0?(inc-tot)/inc*100:null}}).filter(r=>r.tot||r.inc);
+  if(!rows.length)return empty('No transactions to compare yet.');
+  const mx=Math.max(1,...rows.flatMap(r=>r.sp));
+  return`<div class="card s12"><h3>By person, last ${keys.length} months</h3><div class="cs">Income and spending exclude transfers between your own accounts. Savings rate is income minus spending, as a share of income.</div><div class="scroll"><table class="tbl"><thead><tr><th>Person</th>${keys.map(k=>`<th class="r">${mon(k).split(' ')[0]}</th>`).join('')}<th class="r">Spent</th><th class="r">Income</th><th class="r">Savings rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${ownTag(r.m.id)}</td>${r.sp.map(v=>`<td class="r num" title="${money2(v)}"><span class="mbar" style="--h:${Math.round(v/mx*100)}%"></span>${compact(v)}</td>`).join('')}<td class="r num">${money(r.tot)}</td><td class="r num">${money(r.inc)}</td><td class="r num ${r.rate==null?'faint':r.rate>=0?'in':'out'}">${r.rate==null?'—':r.rate.toFixed(0)+'%'}</td></tr>`).join('')}</tbody></table></div></div>`}
 function anaView(){const rg=getRange();if(!rg)return empty('Import transactions to see analytics.');
   const sub=S.ana||'trends',who=S.member==='all'?'the whole family':memOf(S.member).name;
-  const head=`<div class="sec" style="margin-top:0"><div><div class="muted" style="font-size:13.5px">${sub==='years'?'All years on record':esc(rg.label)} · ${esc(who)}</div></div>${seg('anasub',[['trends','Trends'],['cats','Categories'],['patterns','Patterns'],['years','Years']],sub)}</div>`;
+  const head=`<div class="sec" style="margin-top:0"><div><div class="muted" style="font-size:13.5px">${sub==='years'?'All years on record':esc(rg.label)} · ${esc(who)}</div></div>${seg('anasub',[['trends','Trends'],['cats','Categories'],['patterns','Patterns'],['years','Years'],['people','People']],sub)}</div>`;
   const cur=within(base(),rg.from,rg.to);
-  return head+{trends:anaTrends,cats:anaCats,patterns:anaPatterns,years:anaYears}[sub](rg,cur)}
+  return head+{trends:anaTrends,cats:anaCats,patterns:anaPatterns,years:anaYears,people:anaPeople}[sub](rg,cur)}
 
 /* ===== Trends ===== */
 function forecast(){const ms=MS(),b=bounds();let keys=Object.keys(ms).sort();if(keys.length<4)return null;
@@ -594,7 +617,7 @@ function overview(){
   const stat=(l,v,sub,cls='')=>`<div class="card stat s3"><div class="sl">${l}</div><div class="sv num ${cls}">${v}</div><div class="ss">${sub}</div></div>`;
   const mems=S.members.map(m=>{const mt=cur.filter(t=>t.m===m.id),big=mt.filter(t=>t.amt<0&&!NONSPEND.has(t.cat)).sort((x,y)=>x.amt-y.amt)[0];return[m.name,sums(mt).sp,m.color,{cat:byCat(mt)[0],mer:merchants(mt)[0],big,n:mt.length}]}).filter(x=>x[1]>0);const mt=mems.reduce((a,x)=>a+x[1],0);
   const multi=S.member==='all'&&mems.length>1,accRows=nw.accs.filter(a=>a.sub!=='PPF'&&!a.closed).map(a=>[a,curBal(a)]).filter(x=>x[1]!=null).sort((x,y)=>y[1]-x[1]).slice(0,5);
-  const nOther=S.tx.filter(t=>t.cat==='Other'&&inMember(t)).length;const h=onboard()+(nOther?`<div class="card reviewq"><div><b>${nOther.toLocaleString('en-IN')} transaction${nOther>1?'s':''} without a category</b><span>Sorting them makes spending charts accurate. The app remembers your choice for similar payments.</span></div><button class="btn sm primary" data-act="cat" data-v="Other">Review</button></div>`:'')+`<div class="grid">
+  const nOther=S.tx.filter(t=>t.cat==='Other'&&inMember(t)).length;const h=onboard()+attentionCards(nOther)+`<div class="grid">
     ${(()=>{const mm={};for(const t of base())mm[t.d.slice(0,7)]=(mm[t.d.slice(0,7)]||0)+t.amt;let run=0;const ser=Object.keys(mm).sort().map(k=>run+=mm[k]).slice(-12);const [wi,wd]=money(nw.total,2).split('.');
       const line=ser.length>1?(()=>{const mx=Math.max(...ser),mn=Math.min(...ser),sp=mx-mn||1,pts=ser.map((v,i)=>[i/(ser.length-1)*300,56-(v-mn)/sp*48]);const d='M'+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join('L');return`<svg class="hspark" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="hsg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7BA7FF" stop-opacity=".35"/><stop offset="1" stop-color="#7BA7FF" stop-opacity="0"/></linearGradient></defs><path d="${d}L300,60L0,60Z" fill="url(#hsg)"/><path d="${d}" fill="none" stroke="#7BA7FF" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`})():'';
       return`<div class="card nwhero s6"><div class="sl">Net worth</div><div class="sv num">${wi}<span class="dim">.${wd||'00'}</span></div><div class="ss">${nw.known||nw.inv?`Bank ${compact(nw.cash)} · Investments ${compact(nw.inv)}`:'Import a statement to see your balances'}</div><div class="nwf"><span class="chip ${c.net>=0?'good':'bad'}">${c.net>=0?'Saved':'Overspent'} ${money(Math.abs(c.net))}</span><span>${rate.toFixed(0)}% of income · ${esc(rg.label)}</span></div>${line}</div>`})()}
@@ -669,24 +692,24 @@ function cards(){const cs=S.accts.filter(a=>a.type==='card'&&(S.member==='all'||
 /* investments */
 function inv(){const hs=S.hold.filter(inMember);
   if(!hs.length)return`<div class="card empty"><p style="margin:0 0 12px"><b style="color:var(--fg)">No investments tracked yet.</b><br>Import a broker or mutual fund holdings file, or add PPF, NPS, Sukanya, LIC and others by hand.</p><button class="btn primary" data-act="addhold">Add investment</button> <button class="btn" data-act="import">Import holdings</button></div>`;
-  const W=hs.reduce((a,h)=>a+h.value,0),I=hs.reduce((a,h)=>a+h.invested,0),G=W-I;
+  const W=hs.reduce((a,h)=>a+h.value,0),I=hs.reduce((a,h)=>a+h.invested,0),G=W-I,hasGain=hs.some(h=>Math.abs(h.value-h.invested)>0.5);
   const byT=HT.map(([n,c])=>[n,hs.filter(h=>h.type===n).reduce((a,h)=>a+h.value,0),c]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
   const byM=S.members.map(m=>[m.name,hs.filter(h=>h.m===m.id).reduce((a,h)=>a+h.value,0),m.color]).filter(x=>x[1]>0);
   const fy=fyStart(...(()=>{const b=bounds();const d=b?dt(b.mx):new Date();return[d.getFullYear(),d.getMonth()+1]})());
   const lim=hs.filter(h=>LIMITS[h.type]&&h.fy!=null);
-  const up=hs.filter(h=>h.maturity).sort((a,b)=>a.maturity<b.maturity?-1:1).slice(0,5);
+  const tdy=iso(new Date()),up=hs.filter(h=>h.maturity&&h.maturity>=tdy).sort((a,b)=>a.maturity<b.maturity?-1:1).slice(0,6);
   setTimeout(()=>{const d=$('[data-donut]');if(d){d._d={items:byT,total:W||1,center:['Net worth',compact(W)]};donut(d,byT,W||1,d._d.center)}});
   return`<div class="grid">
    <div class="card kpi s3"><div class="lbl">Current value</div><div class="val num">${tick(W)}</div><div class="foot"><span class="faint">${hs.length} holdings</span></div></div>
    <div class="card kpi s3"><div class="lbl">Invested</div><div class="val num">${tick(I)}</div><div class="foot"><span class="faint">across ${byT.length} asset types</span></div></div>
-   <div class="card kpi s3"><div class="lbl">Gain / loss</div><div class="val num ${G>=0?'in':'out'}">${G>=0?'+':'−'}${money(Math.abs(G))}</div><div class="foot"><span class="chip ${G>=0?'good':'bad'}">${I?(G/I*100).toFixed(1):0}% overall</span></div></div>
+   <div class="card kpi s3"><div class="lbl">Gain / loss</div><div class="val num ${G>=0?'in':'out'}">${G>=0?'+':'−'}${money(Math.abs(G))}</div><div class="foot">${hasGain?`<span class="chip ${G>=0?'good':'bad'}">${I?(G/I*100).toFixed(1):0}% overall</span>`:'<span class="faint">no gain recorded yet</span>'}</div></div>
    <div class="card kpi s3"><div class="lbl">Largest asset</div><div class="val" style="font-size:21px;font-weight:600">${byT[0]?esc(byT[0][0]):'—'}</div><div class="foot"><span class="faint">${byT[0]?pc(byT[0][1],W)+'% of portfolio':''}</span></div></div>
-   <div class="card s5"><h3>Allocation</h3><div class="split"><div class="donut" data-donut></div><div class="rows">${byT.map(([n,v,c])=>`<div class="lrow" data-seg="${esc(n)}" style="grid-template-columns:auto minmax(0,1fr) auto auto"><span class="dot" style="--c:${c}"></span><span class="nm">${esc(n)}</span><span class="num">${compact(v)}</span><span class="pc">${pc(v,W)}%</span></div>`).join('')}</div></div></div>
+   <div class="card s5"><h3>Allocation</h3><div class="split stack"><div class="donut" data-donut></div><div class="rows">${byT.map(([n,v,c])=>`<div class="lrow" data-seg="${esc(n)}" style="grid-template-columns:auto minmax(0,1fr) auto auto"><span class="dot" style="--c:${c}"></span><span class="nm">${esc(n)}</span><span class="num">${compact(v)}</span><span class="pc">${pc(v,W)}%</span></div>`).join('')}</div></div></div>
    <div class="card s4"><h3>By family member</h3><div class="rows">${byM.map(([n,v,c])=>`<div class="lrow" style="grid-template-columns:auto 70px minmax(0,1fr) auto"><span class="dot" style="--c:${c}"></span><span class="nm">${esc(n)}</span><div class="prog" style="--c:${c}"><i style="width:${pc(v,W)}%"></i></div><span class="num">${compact(v)}</span></div>`).join('')}</div>
-     ${up.length?`<h3 style="margin-top:18px">Upcoming maturities</h3><div class="rows">${up.map(h=>`<div class="lrow" style="grid-template-columns:minmax(0,1fr) auto"><span class="nm">${esc(h.name)}</span><span class="muted">${fd(h.maturity)}</span></div>`).join('')}</div>`:''}</div>
+     ${up.length?`<h3 style="margin-top:18px">Upcoming maturities</h3><div class="rows">${up.map(h=>{const dl=daysBetween(tdy,h.maturity);return`<div class="lrow mat" style="grid-template-columns:minmax(0,1fr) auto"><span class="nm">${esc(h.name)}<small>${ownTag(h.m)}</small></span><span class="mr"><b class="num">${money(h.value)}</b><small>${fd(h.maturity)} · ${dl<=0?'today':'in '+(dl<90?dl+' d':dl<730?Math.round(dl/30)+' months':(dl/365).toFixed(1).replace('.0','')+' years')}${dl<=60?' <span class="tg warn">Soon</span>':''}</small></span></div>`}).join('')}</div>`:''}</div>
    <div class="card s3"><h3>FY ${fy}–${String(fy+1).slice(2)} deposits</h3>${lim.length?lim.map(h=>{const l=LIMITS[h.type],p=Math.min(100,pc(h.fy,l));return`<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;gap:8px"><span style="font-weight:500">${esc(h.type==='Sukanya Samriddhi'?'Sukanya':h.type)} · ${esc(memOf(h.m).name)}</span><span class="num muted">${compact(h.fy)} / ${compact(l)}</span></div><div class="prog" style="--c:${p>=100?'var(--in)':'var(--accent)'};margin-top:6px"><i style="width:${p}%"></i></div></div>`}).join(''):'<div class="muted">Add “deposited this FY” on a PPF, NPS or Sukanya account to track the annual limit (₹1.5L for PPF and Sukanya, ₹50K extra for NPS).</div>'}</div>
    <div class="card s12"><h3>Holdings <span><button class="btn sm" data-act="addhold">+ Add investment</button></span></h3><div class="scroll"><table class="tbl hold"><thead><tr><th>Name</th><th>Type</th><th>Owner</th><th class="r">Invested</th><th class="r">Value</th><th class="r">Gain</th><th></th></tr></thead><tbody>
-   ${hs.slice().sort((a,b)=>b.value-a.value).map(h=>{const g=h.value-h.invested;return`<tr><td style="font-weight:500">${esc(h.name)}</td><td><span class="tag" style="color:${HC[h.type]||'inherit'}">${esc(h.type)}</span></td><td>${ownTag(h.m)}</td><td class="r num">${money(h.invested)}</td><td class="r num">${money(h.value)}</td><td class="r num ${g>=0?'in':'out'}">${g>=0?'+':'−'}${h.invested?Math.abs(g/h.invested*100).toFixed(1):0}%</td><td class="r"><button class="btn sm" data-act="edithold" data-id="${h.id}">Edit</button></td></tr>`}).join('')}
+   ${hs.slice().sort((a,b)=>b.value-a.value).map(h=>{const g=h.value-h.invested;return`<tr><td style="font-weight:500">${esc(h.name)}</td><td><span class="tag" style="color:${HC[h.type]||'inherit'}">${esc(h.type)}</span></td><td>${ownTag(h.m)}</td><td class="r num">${money2(h.invested)}</td><td class="r num">${money2(h.value)}</td><td class="r num ${Math.abs(g)<0.5?'faint':g>=0?'in':'out'}">${Math.abs(g)<0.5?'—':(g>=0?'+':'−')+(h.invested?Math.abs(g/h.invested*100).toFixed(1):0)+'%'}</td><td class="r"><button class="btn sm" data-act="edithold" data-id="${h.id}">Edit</button></td></tr>`}).join('')}
    </tbody></table></div></div></div>`}
 
 /* recurring */
@@ -1008,7 +1031,7 @@ function holdForm(h){h=h||{type:'Stocks',m:S.member!=='all'?S.member:S.members[0
   <div class="acts">${h.id?`<button class="btn danger" data-act="holddel" data-id="${h.id}">Delete</button>`:''}<span class="grow"></span><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="holdsave" data-id="${h.id||''}">Save</button></div>`)}
 function guideDlg(){modal(`<h2>Install &amp; hosting guide</h2><p class="sub">Portfolio is one page. It needs no database and no server code, so any web host works.</p>
 <div class="sec"><h2>cPanel (shared hosting)</h2></div>
-<ol class="steps"><li>On a computer, download the repository ZIP from GitHub, or run <code>deploy/make-zip.sh</code> to build <code>portfolio.zip</code>.</li>
+<ol class="steps"><li>On a computer, download the repository ZIP from GitHub, or run <code>scripts/make-zip.sh</code> to build <code>portfolio.zip</code>.</li>
 <li>In cPanel open <b>File Manager</b>, go to <code>public_html</code>, and create a folder such as <code>finance</code>.</li>
 <li>Open the folder, click <b>Upload</b>, add the ZIP, then right-click it and choose <b>Extract</b>.</li>
 <li>Make sure <code>index.html</code>, <code>assets/</code> and <code>vendor/</code> sit directly in that folder. Turn on <b>Show Hidden Files</b> in File Manager settings to see <code>.htaccess</code>.</li>

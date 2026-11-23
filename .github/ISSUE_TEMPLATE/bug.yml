@@ -1,0 +1,17 @@
+name: Bug
+description: Something does not work or looks wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "**Do not paste real statements, account numbers or balances.** Describe them or use made-up numbers."
+  - type: input
+    id: version
+    attributes: { label: Version (shown at the bottom of the side menu), placeholder: "0.7.3" }
+  - type: textarea
+    id: what
+    attributes: { label: What happened, and what did you expect? }
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes: { label: Steps to reproduce }

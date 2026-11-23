@@ -1,8 +1,0 @@
-# From the repo root:  docker compose -f deploy/docker-compose.yml up -d --build
-services:
-  portfolio:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile
-    ports: ["8080:80"]
-    restart: unless-stopped
