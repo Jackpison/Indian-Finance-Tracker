@@ -85,7 +85,7 @@ ok(/already recorded under Asha/.test(await p.textContent('#toast')),'importing 
 await p.click('[data-act=impcancel]');await p.waitForTimeout(300);
 console.log('Updater');
 {const zip=fs.readFileSync(path.join(ROOT,'deploy/make-zip.sh'),'utf8'),php=fs.readFileSync(path.join(ROOT,'deploy/update.php'),'utf8');
- ok(/update\.php/.test(zip)&&/update\.config\.example\.php/.test(zip),'the release ZIP carries update.php and its example config');
+ ok(/sync\.php/.test(zip)&&!/cp deploy\/update\.php/.test(zip),'the release ZIP carries sync.php and leaves the updater files out (they ship as a separate release asset)');
  ok(/DEFAULT_REPO/.test(php),'checking works without a config file');
  const gate=php.indexOf("if (!$sm && !$configured) jout"),cmp=php.indexOf("hash_equals((string)$sm['hash']");
  ok(gate>0&&cmp>gate,'installing with neither a sync copy nor a configured password is refused before anything is compared');}
@@ -105,6 +105,7 @@ await p.click('#tabs [data-v=bal]');await p.waitForSelector('.lr');
 const main1=await p.textContent('#main');
 ok(!/ICICI BANK/.test(main1)&&((main1.match(/ICICI Savings ••0872/g)||[]).length===1),'"ICICI BANK" and "ICICI" are one bank, so the account is merged into one row');
 ok(/₹86,030/.test(main1)&&!/₹16,721/.test(main1),'the newer balance wins after the merge');
+ok(/₹86,030\.00/.test(main1),'Portfolio balances show paise (.00)');
 {const own=await p.$$eval('#main .card:has(h3:text-is("Fixed deposits")) .lr',r=>r.map(x=>(x.querySelector('.tg.own')||{}).textContent||''));ok(own.length===2&&own.includes('Asha')&&own.includes('Ravi'),'each fixed deposit on Portfolio shows its owner tag ('+own.join(',')+')');}
 await p.click('.mem .pill:has-text("Everyone")').catch(()=>{});
 await p.setInputFiles('#file',sampleStmt);await p.waitForSelector('#imem',{timeout:30000});

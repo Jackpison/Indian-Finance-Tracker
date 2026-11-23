@@ -4,6 +4,18 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-11-23
+### Fixed
+- **Installing an update from the Updates page no longer stops with "Unexpected file in release: update.php".** The release ZIP carried `update.php` and an example config that the updater itself refused. The ZIP now holds only the app and `sync.php`, and the updater skips any file it does not manage instead of aborting. `update.php` is a separate release asset for the one-time upload. A new test installs a real ZIP, including an old-style one.
+- The passcode screen could drop the second box's text into the first box when typed quickly (a 50 ms auto-focus). It now only focuses when nothing else is focused. This also explains the occasional "passcode screen stuck" test failures.
+- The side-panel footer floated over the menu on short windows. It is now a single compact row at the end of the menu (sync status, lock icon).
+
+### Added
+- **Recovery key.** A 25-character key is shown once when you create or change your passcode (and can be made in Settings, Security). If you forget the passcode, "Forgot passcode? Use recovery key" on the lock screen unlocks the data in that browser and asks for a new passcode. Only an encrypted copy of the passcode is stored, protected by the key. It works in the browser that holds your data; a fresh browser still needs the passcode or a backup.
+- **Unlock lockout.** Three wrong passcodes start a growing wait (5 s up to 15 min). It survives a page reload.
+- **NPS statements are read.** An NPS Tier I/II transaction statement (the PDF from the NPS/CRA portal) used to fall through to the generic table reader and create nothing useful. It is now recognised by its PRAN: you get one NPS holding ("NPS Tier I ••1745") with the total value and total contribution, the owner is pre-selected from the name on the statement, and importing a newer statement updates it. It is an investment, not a bank account, so no account is created. The three scheme values are cross-checked against the total.
+- **Paise (.00) on Transactions totals and everywhere on Portfolio** (account balances, totals, fixed deposits, the per-person table).
+
 ## [0.7.2] - 2026-11-23
 ### Changed
 - **Side panel (desktop):** a footer now shows whether sync is on and when it last synced (click it to open sync settings) and a Lock now button. The Updates item shows a "new" mark when a newer version is available. The layout of the page itself is unchanged.

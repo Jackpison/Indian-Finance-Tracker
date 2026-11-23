@@ -65,7 +65,7 @@ jobs:
             echo
             echo "## Install or update"
             echo
-            echo "- **cPanel / any host:** download \`portfolio-v$V.zip\` below, upload it to your site folder and extract over the old files. Your data lives in the browser and is not touched."
+            echo "- **cPanel / any host:** download \`portfolio-v$V.zip\` below, upload it to your site folder and extract over the old files. Your data lives in the browser and is not touched. The one-click updater file \`update.php\` is a separate download below: upload it once, next to index.html."
             echo "- **Automatic:** FTPS deploys and the one-click \`update.php\` are described in the [README](https://github.com/${{ github.repository }}#releases-and-updates)."
             echo
             echo "## Verify the download"
@@ -80,7 +80,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ steps.ver.outputs.version }}"
-          FILES="portfolio-$TAG.zip portfolio-$TAG.zip.sha256"
+          cp deploy/update.php update.php
+          FILES="portfolio-$TAG.zip portfolio-$TAG.zip.sha256 update.php"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" $FILES --clobber
             gh release edit "$TAG" --title "Portfolio $TAG" --notes-file notes.md --latest

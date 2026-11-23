@@ -306,10 +306,11 @@ body{background-image:none}
   .shell{max-width:none;padding:0 28px 56px 288px;position:relative}
   .tabs{position:fixed;left:0;top:0;bottom:0;width:260px;margin:0;padding:18px 14px;border:0;border-right:1px solid var(--line);border-radius:0;background:var(--surface);flex-direction:column;gap:2px;overflow-y:auto;max-width:none;z-index:5}
   .tabs .ind{display:none}
-  #sidefoot{display:flex;flex-direction:column;gap:2px;margin-top:auto;padding-top:12px;border-top:1px solid var(--line);position:sticky;bottom:0;background:inherit}
-  #sidefoot .sfrow{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;border:0;background:none;border-radius:10px;font-size:13px;color:var(--muted);text-align:left}
-  #sidefoot .sfrow:hover{background:var(--surface-2);color:var(--fg)}
-  #sidefoot kbd{margin-left:auto;font:11px ui-monospace,monospace;opacity:.7}
+  #sidefoot{display:flex;align-items:center;gap:4px;margin-top:auto;padding-top:10px;border-top:1px solid var(--line)}
+  .tabs button.sfrow{flex:1;width:auto;padding:8px 10px;font-size:12.5px;color:var(--muted);gap:8px;white-space:nowrap;overflow:hidden}
+  .tabs button.sfrow span{overflow:hidden;text-overflow:ellipsis}
+  .tabs button.sflock{width:34px;height:34px;padding:0;justify-content:center;flex:none;color:var(--muted)}
+  .tabs button.sflock:hover,.tabs button.sfrow:hover{background:var(--surface-2);color:var(--fg)}
   #sidefoot .sfd{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
   #sidefoot .sfd.ok{background:#1faa6b}#sidefoot .sfd.warn{background:#e0a21b}
   .tabs button.hasupd .ver{background:var(--accent);color:#fff;opacity:1}
@@ -597,3 +598,5 @@ svg[aria-label=Breakdown]:hover{transform:scale(1.025)}
 @media(max-width:900px){.setl{grid-template-columns:1fr}.snav{position:static;flex-direction:row;overflow-x:auto;scrollbar-width:none}.snav button{white-space:nowrap}}
 #gateerr{min-height:1.3em;font-size:13px}.lockcard #gpw1{margin-top:6px}.lockcard #gpw2{margin-bottom:2px}
 .mng>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}.mng>summary::-webkit-details-marker{display:none}.mng>summary::after{content:'›';font-size:22px;color:var(--muted);transition:transform .2s}.mng[open]>summary::after{transform:rotate(90deg)}
+
+.reckey{font:600 20px/1.5 ui-monospace,monospace;letter-spacing:.06em;text-align:center;padding:16px 12px;margin:14px 0;border:1px dashed var(--line);border-radius:14px;background:var(--surface-2);user-select:all;word-break:break-all}

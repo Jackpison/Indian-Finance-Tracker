@@ -19,7 +19,7 @@
  */
 declare(strict_types=1);
 
-const ALLOWED = ['index.html', 'robots.txt', 'sync.php', 'version.json', 'sw.js', 'manifest.webmanifest', 'css/', 'js/', 'assets/', 'vendor/', '.htaccess'];
+const ALLOWED = ['update.php', 'index.html', 'robots.txt', 'sync.php', 'version.json', 'sw.js', 'manifest.webmanifest', 'css/', 'js/', 'assets/', 'vendor/', '.htaccess'];
 const LOG_LIMIT = 4;
 const DEFAULT_REPO = 'Jackpison/Indian-Finance-Tracker'; // used for checking when no update.config.php exists
 
@@ -95,7 +95,8 @@ function install(string $root, array $rel): void {
     $names = [];
     for ($i = 0; $i < $z->numFiles; $i++) {
         $n = $z->getNameIndex($i);
-        if (!allowed($n)) throw new RuntimeException('Unexpected file in release: ' . $n);
+        if ($n === '' || $n[0] === '/' || str_contains($n, '..') || str_contains($n, "\0") || str_contains($n, '\\')) throw new RuntimeException('Unsafe path in release: ' . $n);
+        if (!allowed($n)) continue; // anything this updater does not manage (for example update.config.example.php) is skipped, never a reason to stop
         $names[] = $n;
     }
     // backup
@@ -108,6 +109,7 @@ function install(string $root, array $rel): void {
     $old = glob($bk . '/before-*.zip') ?: []; sort($old);
     foreach (array_slice($old, 0, max(0, count($old) - LOG_LIMIT)) as $f) @unlink($f);
     // extract (keep an existing .htaccess: it may hold your own settings)
+    usort($names, fn($a, $b) => ($a === 'update.php') <=> ($b === 'update.php')); // this file replaces itself last
     foreach ($names as $n) {
         if ($n === '.htaccess' && is_file("$root/.htaccess")) continue;
         $dest = "$root/$n";

@@ -1,11 +1,11 @@
 {
   "name": "portfolio-finance-tracker",
   "private": true,
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Portfolio — private family finance dashboard. Static site, no build step.",
   "scripts": {
     "check": "node --check js/app.js && node --check js/theme.js && node --check js/statement.js",
-    "test": "node tests/statement.js && node tests/e2e.js && node tests/features.js && node tests/update.js && node tests/sync.js"
+    "test": "node tests/statement.js && node tests/e2e.js && node tests/features.js && node tests/update.js && node tests/sync.js && node tests/recovery.js && node tests/install.js"
   },
   "devDependencies": { "playwright": "^1.49.0" }
 }

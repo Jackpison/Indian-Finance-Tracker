@@ -10,8 +10,8 @@
 <meta name="color-scheme" content="light dark">
 <title>Portfolio</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="css/app.css?v=0.7.2">
-<script src="js/theme.js?v=0.7.2"></script>
+<link rel="stylesheet" href="css/app.css?v=0.7.3">
+<script src="js/theme.js?v=0.7.3"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -34,7 +34,7 @@
   <main id="main" tabindex="-1"></main>
 </div>
 <div id="gate" hidden><div class="lockcard"><img id="gateimg" alt="" width="64" height="64"><h2>Create your passcode</h2><p class="muted" id="gatenote"></p><input id="gpw1" type="password" autocomplete="new-password" placeholder="Passcode (10+ characters)" aria-label="Passcode" data-change="pwmeter2"><div class="meter" style="margin:8px 0 10px"><i id="gpm"></i></div><input id="gpw2" type="password" autocomplete="new-password" placeholder="Repeat passcode" aria-label="Repeat passcode"><p id="gateerr" class="out" role="alert"></p><button class="btn primary shine" id="gatego" data-act="gatego" style="width:100%;justify-content:center">Create passcode</button><button class="lockreset" id="gatefetch" data-act="gatefetch">Already use this on your server? Restore from it</button><p class="faint" style="font-size:12px;margin:10px 0 0">There is no way to recover a forgotten passcode. Write it down somewhere safe.</p></div></div>
-<div id="lock" hidden><div class="lockcard"><img id="lockimg" alt="" width="64" height="64"><h2>Portfolio is locked</h2><p class="muted">Enter your passcode to unlock the data stored on this device.</p><input id="lockpw" type="password" autocomplete="current-password" placeholder="Passcode" aria-label="Passcode"><p id="lockerr" class="out" role="alert"></p><button class="btn primary shine" id="lockgo" data-act="unlock" style="width:100%;justify-content:center">Unlock</button><button class="lockreset" data-act="lockreset">Forgot passcode? Erase data on this device</button></div></div>
+<div id="lock" hidden><div class="lockcard"><img id="lockimg" alt="" width="64" height="64"><h2>Portfolio is locked</h2><p class="muted">Enter your passcode to unlock the data stored on this device.</p><input id="lockpw" type="password" autocomplete="current-password" placeholder="Passcode" aria-label="Passcode"><p id="lockerr" class="out" role="alert"></p><button class="btn primary shine" id="lockgo" data-act="unlock" style="width:100%;justify-content:center">Unlock</button><button class="lockreset" id="lockrec" data-act="lockrec">Forgot passcode? Use recovery key</button><button class="lockreset" data-act="lockreset">Forgot passcode? Erase data on this device</button></div></div>
 <div id="modal" hidden></div>
 <nav id="dock" aria-label="Primary"></nav>
 <div id="cmd" hidden><div class="cmdbox" role="dialog" aria-label="Command menu"><div class="cmdin"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><input id="cmdq" placeholder="Search transactions, jump to a page, run an action" autocomplete="off" aria-label="Command search"><kbd>esc</kbd></div><div id="cmdl" role="listbox"></div></div></div>
@@ -43,7 +43,7 @@
 <div id="toast" role="status"></div>
 <input type="file" id="file" multiple hidden accept=".csv,.tsv,.txt,.xlsx,.xls,.pdf,.ofx,.qfx">
 
-<script src="js/statement.js?v=0.7.2"></script>
-<script src="js/app.js?v=0.7.2"></script>
+<script src="js/statement.js?v=0.7.3"></script>
+<script src="js/app.js?v=0.7.3"></script>
 </body>
 </html>

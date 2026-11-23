@@ -33,5 +33,6 @@ exports.gate=async(p,pw=exports.PASS)=>{
       await p.fill('#gpw1',pw);await p.fill('#gpw2',pw);await p.click('#gatego');
       try{await p.waitForSelector('#gate',{state:'hidden',timeout:attempt<2?15000:45000});break}
       catch(e){if(attempt===2)throw new Error('The passcode gate stayed open. Message: '+JSON.stringify(await p.textContent('#gateerr').catch(()=>null))+', button: '+JSON.stringify(await p.textContent('#gatego').catch(()=>null)))}}
+    await p.waitForSelector('[data-act=recdone]',{timeout:10000}).catch(()=>{});if(await p.$('[data-act=recdone]'))await p.click('[data-act=recdone]');
     await p.waitForTimeout(300)}
   else if(await p.isVisible('#lock')){await p.fill('#lockpw',pw);await p.click('#lockgo');await p.waitForSelector('#lock',{state:'hidden',timeout:45000});await p.waitForTimeout(300)}};

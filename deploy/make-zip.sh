@@ -9,7 +9,9 @@ case "$OUT" in /*) ABS="$OUT";; *) ABS="$PWD/$OUT";; esac
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 cp -r index.html robots.txt version.json sw.js manifest.webmanifest css js assets vendor "$STAGE/"
-cp deploy/update.php deploy/sync.php deploy/update.config.example.php "$STAGE/"
+# update.php and its example config are NOT in the ZIP: the in-app updater refuses files it does not manage, and a ZIP it cannot install is worse than no ZIP.
+# They are published next to it as separate release assets (see release.yml).
+cp deploy/sync.php "$STAGE/"
 cp deploy/htaccess.txt "$STAGE/.htaccess"
 ( cd "$STAGE" && zip -qr "$ABS" . )
 sha256sum "$OUT" | tee "$OUT.sha256"

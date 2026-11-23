@@ -139,7 +139,40 @@
     return { bank: best(), sure: false };
   }
 
+  /** NPS (National Pension System) Tier I/II transaction statements: one holding per PRAN, not a bank account. */
+  function parseNPS(pages) {
+    const lines = [];
+    for (const p of pages) for (const l of groupLines(p)) lines.push(l.text.replace(/\s+/g, ' '));
+    const head = lines.slice(0, 90).join('\n');
+    if (!/NPS Transaction Statement/i.test(head)) return null;
+    const pran = (head.match(/PRAN\s+(\d{12})/) || [])[1];
+    if (!pran) return null;
+    const warnings = [];
+    const who = ((head.match(/Subscriber Name\s+(.+?)(?:\s+Tier [I]+ Status|\n|$)/i) || [])[1] || '').trim();
+    const tier = ((head.match(/Statement for\s+Tier\s+(I{1,2})\s+Account/i) || [])[1]) || 'I';
+    let value = null, invested = null;
+    const schemes = [];
+    let asof = null;
+    for (const t of lines) {
+      let m = t.match(/(?:₹\s*)?([\d,]+\.\d{2})\s+(\d+)\s+(?:₹\s*)?([\d,]+\.\d{2})\s+(?:₹\s*)?([\d,]+\.\d{2})\s+(?:₹\s*)?(-?[\d,]+\.\d{2})/);
+      if (m && value === null) { value = toNum(m[1]); invested = toNum(m[3]); continue; }
+      m = t.match(/^(.*SCHEME\s+[A-Z0-9]+.*?TIER\s+I{1,2}(?:\s+POP)?)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{4})\s+([\d,]+\.\d{4})$/i);
+      if (m) { schemes.push({ name: m[1].trim(), value: toNum(m[2]), units: toNum(m[3]) }); continue; }
+      m = t.match(/(\d{1,2}-[A-Za-z]{3}-\d{4})\s+Closing Balance/i);
+      if (m) { const d = parseDate(m[1]); if (d && (!asof || d > asof)) asof = d; }
+    }
+    const sumSch = Math.round(schemes.reduce((a, x) => a + x.value, 0) * 100) / 100;
+    if (value === null && schemes.length) value = sumSch;
+    if (value === null) return null;
+    if (schemes.length && Math.abs(sumSch - value) > 1) warnings.push('The scheme values do not add up to the total value. Check the figures.');
+    if (invested === null) { invested = 0; warnings.push('Total contribution was not found, so Invested is 0.'); }
+    return { bank: 'NPS', bankSure: true, nps: true, who, tier, sections: [], fdListed: false, warnings,
+      holdings: [{ kind: 'NPS', number: pran, invested: Math.round(invested * 100) / 100, value: Math.round(value * 100) / 100, asof, schemes }] };
+  }
+
   function parse(pages) {
+    const np = parseNPS(pages);
+    if (np) return np;
     const warnings = [];
     const all = pages.map((p, i) => ({ n: i + 1, lines: groupLines(p) }));
     const det = detectBank(all.slice(0, 2).map((p) => p.lines.map((l) => l.text))), bank = det.bank;
@@ -302,6 +335,6 @@
   }
   const last4 = (n) => (n ? String(n).slice(-4) : '');
 
-  const api = { parse, parseDate, groupLines, readHeader, tidy, canonBank };
+  const api = { parse, parseNPS, parseDate, groupLines, readHeader, tidy, canonBank };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PFStmt = api;
 })(typeof window !== 'undefined' ? window : globalThis);

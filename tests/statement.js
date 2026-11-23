@@ -66,4 +66,21 @@ const root = path.join(__dirname, '..');
   assert.strictEqual(S.canonBank('Bank of Baroda'), 'BANK OF BARODA', 'Bank of Baroda stays');
   assert.strictEqual(S.canonBank('Union Bank of India'), 'UNION BANK', 'Union Bank of India');
   console.log('bank detection OK');
+  { // NPS statement, fictional person and numbers
+    const L = ['NPS TRANSACTION STATEMENT', 'April 01, 2026 to November 23, 2026', 'NPS Transaction Statement for', 'Tier I Account',
+      'PRAN  100000000042  Registration Date  11-Aug-20', 'Subscriber Name  ASHA TESTER  Tier I Status  Active',
+      'Investment Summary', '₹ 3,00,000.50  12  ₹ 2,50,000.00  ₹ 0.00  ₹ 50,000.50  ₹ 100.00',
+      'ICICI PENSION FUND SCHEME E - TIER I POP  1,50,000.25  1,000.0000  150.0000',
+      'ICICI PENSION FUND SCHEME C - TIER I POP  90,000.15  2,000.0000  45.0000',
+      'ICICI PENSION FUND SCHEME G - TIER I POP  60,000.10  1,500.0000  40.0000',
+      '01-Apr-2026  Opening balance  1,000.0000', '23-Nov-2026  Closing Balance  1,200.0000'];
+    const pg = [L.map((s, i) => ({ x: 10, y: 800 - i * 14, w: 400, s }))];
+    const n = S.parse(pg);
+    assert(n && n.nps && n.sections.length === 0, 'an NPS statement is recognised and has no bank sections');
+    const hd = n.holdings[0];
+    assert.strictEqual(hd.number, '100000000042'); assert.strictEqual(hd.value, 300000.5); assert.strictEqual(hd.invested, 250000);
+    assert.strictEqual(hd.asof, '2026-11-23'); assert.strictEqual(hd.schemes.length, 3); assert.strictEqual(n.who, 'ASHA TESTER'); assert.strictEqual(n.tier, 'I');
+    assert.strictEqual(n.warnings.length, 0, 'scheme values add up to the total');
+    console.log('nps statement OK');
+  }
 })().catch(e => { console.error(e); process.exit(1); });
