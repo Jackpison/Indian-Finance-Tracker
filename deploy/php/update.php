@@ -13,8 +13,9 @@
  *   - Does nothing without the token (compared in constant time), POST only, HTTPS only.
  *   - Only upgrades; never downgrades.
  *   - Verifies the ZIP against the SHA-256 file published with the release.
- *   - Only extracts known app files; never touches update.php, update.config.php or an existing .htaccess.
- *   - Keeps a backup of the replaced files in .portfolio-backup/ (blocked from the web).
+ *   - Only extracts known app files; never takes update.php from the ZIP, never touches update.config.php or an existing .htaccess.
+ *   - Lives in server/ (with sync.php, data/ and backup/). Upload it next to index.html or into server/; the first install moves everything.
+ *   - Keeps a backup of the replaced files in server/backup/ (blocked from the web).
  * Delete this file when you are not using it. Your data lives in browsers and is never touched.
  */
 declare(strict_types=1);
@@ -27,8 +28,15 @@ header('X-Robots-Tag: noindex, nofollow');
 header('Cache-Control: no-store');
 header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'");
 
-$root = __DIR__;
-$cfgFile = $root . '/update.config.php';
+/* Two layouts. Tidy: this file lives in <site>/server/ with data/ and backup/ beside it. Legacy: it sits next to index.html
+   (older releases); the first install after uploading this version moves everything into server/. */
+$here = __DIR__;
+$legacy = is_file($here . '/index.html');
+$root = $legacy ? $here : dirname($here);
+$srv = $root . '/server';
+$dataDir = $legacy ? $root . '/sync-data' : $here . '/data';
+$bkDir = $legacy ? $root . '/.portfolio-backup' : $here . '/backup';
+$cfgFile = is_file($here . '/update.config.php') ? $here . '/update.config.php' : $root . '/update.config.php';
 $cfg = is_file($cfgFile) ? (require $cfgFile) : null;
 
 function out(string $body, int $code = 200): never {
@@ -85,7 +93,7 @@ function allowed(string $name): bool {
     foreach (ALLOWED as $a) if ($name === $a || (str_ends_with($a, '/') && str_starts_with($name, $a))) return true;
     return false;
 }
-function install(string $root, array $rel): void {
+function install(string $root, array $rel, string $bk): void {
     $tmp = tempnam(sys_get_temp_dir(), 'pf');
     if (!http_get($rel['zip'], $tmp)) throw new RuntimeException('Download failed.');
     $want = strtolower(substr(trim((string)http_get($rel['sha'])), 0, 64));
@@ -100,19 +108,18 @@ function install(string $root, array $rel): void {
         $names[] = $n;
     }
     // backup
-    $bk = $root . '/.portfolio-backup';
-    if (!is_dir($bk)) { mkdir($bk, 0750); file_put_contents($bk . '/.htaccess', "Require all denied\nDeny from all\n"); }
+    if (!is_dir($bk)) { mkdir($bk, 0750, true); file_put_contents($bk . '/.htaccess', "Require all denied\nDeny from all\n"); }
     $b = new ZipArchive();
     $b->open($bk . '/before-' . current_version($root) . '-' . date('Ymd-His') . '.zip', ZipArchive::CREATE);
-    foreach ($names as $n) { if (substr($n, -1) !== '/' && is_file("$root/$n")) $b->addFile("$root/$n", $n); }
+    foreach ($names as $n) { $f = $n === 'sync.php' ? "$root/server/sync.php" : "$root/$n"; if ($n !== 'update.php' && substr($n, -1) !== '/' && is_file($f)) $b->addFile($f, $n); }
     $b->close();
     $old = glob($bk . '/before-*.zip') ?: []; sort($old);
     foreach (array_slice($old, 0, max(0, count($old) - LOG_LIMIT)) as $f) @unlink($f);
     // extract (keep an existing .htaccess: it may hold your own settings)
-    usort($names, fn($a, $b) => ($a === 'update.php') <=> ($b === 'update.php')); // this file replaces itself last
     foreach ($names as $n) {
+        if ($n === 'update.php') continue; // the updater is not taken from the ZIP; it copies itself to server/ below
         if ($n === '.htaccess' && is_file("$root/.htaccess")) continue;
-        $dest = "$root/$n";
+        $dest = $n === 'sync.php' ? "$root/server/sync.php" : "$root/$n"; // the ZIP keeps sync.php at its root so older updaters accept it
         if (substr($n, -1) === '/') { if (!is_dir($dest)) mkdir($dest, 0755, true); continue; }
         if (!is_dir(dirname($dest))) mkdir(dirname($dest), 0755, true);
         $s = $z->getStream($n);
@@ -122,18 +129,36 @@ function install(string $root, array $rel): void {
         rename($t, $dest);
     }
     $z->close(); @unlink($tmp);
+    self_install($root);
+    tidy($root);
     if (function_exists('opcache_reset')) @opcache_reset();
+}
+
+function self_install(string $root): void { // this updater lives in server/ from now on
+    $d = $root . '/server/update.php';
+    if (!is_dir($root . '/server')) mkdir($root . '/server', 0755, true);
+    if (realpath(__FILE__) !== realpath($d) && @copy(__FILE__, $d . '.new')) rename($d . '.new', $d);
+}
+function tidy(string $root): void { // moves the old root-level files into server/ and removes what is no longer needed
+    $s = $root . '/server';
+    if (!is_dir($s)) mkdir($s, 0755, true);
+    if (is_dir("$root/sync-data") && !is_dir("$s/data")) @rename("$root/sync-data", "$s/data");
+    if (is_dir("$root/.portfolio-backup") && !is_dir("$s/backup")) @rename("$root/.portfolio-backup", "$s/backup");
+    if (is_file("$root/update.config.php") && !is_file("$s/update.config.php")) @rename("$root/update.config.php", "$s/update.config.php");
+    foreach (['.update-fails.php', '.update.lock', 'update.config.example.php'] as $f) @unlink("$root/$f");
+    if (is_file("$s/sync.php")) @unlink("$root/sync.php");
+    if (is_file("$s/update.php") && realpath("$root/update.php") !== realpath("$s/update.php")) @unlink("$root/update.php");
 }
 
 /* Installing is allowed with the app passcode: the browser derives a token from it (the same one sync.php checks) and this
    file compares its SHA-256 with the one stored by sync.php. update.config.php, if present, is still accepted as before. */
-function sync_meta(string $root): ?array {
-    $raw = @file_get_contents($root . '/sync-data/meta.php'); if ($raw === false) return null;
+function sync_meta(string $dataDir): ?array {
+    $raw = @file_get_contents($dataDir . '/meta.php'); if ($raw === false) return null;
     $n = strpos($raw, "\n"); $j = $n === false ? null : json_decode(substr($raw, $n + 1), true);
     return is_array($j) && !empty($j['hash']) && !empty($j['asalt']) ? $j : null;
 }
-function install_throttle(string $root, ?bool $failed): bool { // true = this visitor is paused
-    $f = $root . '/.update-fails.php'; $ip = $_SERVER['REMOTE_ADDR'] ?? '?'; $now = time();
+function install_throttle(string $dir, ?bool $failed): bool { // true = this visitor is paused
+    $f = $dir . '/.update-fails.php'; $ip = $_SERVER['REMOTE_ADDR'] ?? '?'; $now = time();
     $raw = @file_get_contents($f); $n = $raw === false ? false : strpos($raw, "\n");
     $all = $n === false ? [] : (json_decode(substr($raw, $n + 1), true) ?: []);
     $mine = array_values(array_filter($all[$ip] ?? [], fn($t) => $t > $now - 600));
@@ -146,24 +171,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['api'] ?? '') === '1') { //
     $do = (string)($_POST['do'] ?? 'check');
     if ($do === 'check') { // public release info only, so no password is needed to look
         try { $cur = current_version($root); $rel = latest($cfg);
-            $sm = sync_meta($root);
+            $sm = sync_meta($dataDir);
             jout(['installed' => $cur, 'latest' => $rel['version'], 'newer' => version_compare($rel['version'], $cur, '>'), 'notes' => mb_substr($rel['notes'], 0, 6000),
-                  'auth' => $sm ? 'passcode' : ($configured ? 'config' : 'none'), 'asalt' => $sm ? $sm['asalt'] : null]);
+                  'layout' => $legacy ? 'legacy' : 'tidy', 'auth' => $sm ? 'passcode' : ($configured ? 'config' : 'none'), 'asalt' => $sm ? $sm['asalt'] : null]);
         } catch (Throwable $e) { jout(['error' => $e->getMessage()], 500); }
     }
-    $tok = (string)($_POST['token'] ?? ''); $sm = sync_meta($root);
+    $tok = (string)($_POST['token'] ?? ''); $sm = sync_meta($dataDir);
     if (!$sm && !$configured) jout(['error' => 'Installing is checked against your passcode, which this server learns when sync starts. Sync turns on by itself once the app has data and sync.php is on your site. Open the app, add or import something, then try again.', 'needsync' => true], 403);
-    if (install_throttle($root, null)) jout(['error' => 'Too many wrong attempts. Wait a few minutes.'], 429);
+    if (install_throttle($here, null)) jout(['error' => 'Too many wrong attempts. Wait a few minutes.'], 429);
     $ok = ($sm && preg_match('/^[0-9a-f]{64}$/', $tok) && hash_equals((string)$sm['hash'], hash('sha256', $tok))) || ($configured && hash_equals((string)$cfg['token'], $tok));
-    if (!$ok) { install_throttle($root, true); usleep(400000); jout(['error' => 'Wrong passcode.'], 403); } // nothing changes until the passcode is right
-    $lk = fopen($root . '/.update.lock', 'c');
+    if (!$ok) { install_throttle($here, true); usleep(400000); jout(['error' => 'Wrong passcode.'], 403); } // nothing changes until the passcode is right
+    $lk = fopen($here . '/.update.lock', 'c');
     if (!$lk || !flock($lk, LOCK_EX | LOCK_NB)) jout(['error' => 'An update is already running.'], 409);
     try {
         $cur = current_version($root); $rel = latest($cfg); $newer = version_compare($rel['version'], $cur, '>');
-        if ($do === 'install') {
-            if (!$newer) jout(['ok' => true, 'version' => $cur, 'note' => 'Already up to date.']);
-            install($root, $rel);
-            jout(['ok' => true, 'version' => $rel['version']]);
+        if ($do === 'install' || $do === 'tidy') { // tidy re-installs the current release into the new server/ layout
+            if ($do === 'install' && !$newer) jout(['ok' => true, 'version' => $cur, 'note' => 'Already up to date.']);
+            install($root, $rel, $bkDir);
+            jout(['ok' => true, 'version' => $rel['version'], 'tidy' => true]);
         }
         jout(['error' => 'Unknown action.'], 400);
     } catch (Throwable $e) { jout(['error' => $e->getMessage()], 500); }
@@ -176,7 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 usleep(400000); // slow down guessing
 if (!hash_equals((string)$cfg['token'], (string)($_POST['token'] ?? ''))) out('<p>Wrong token.</p>', 403);
 
-$lock = fopen($root . '/.update.lock', 'c');
+$lock = fopen($here . '/.update.lock', 'c');
 if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) out('<p>An update is already running.</p>', 409);
 try {
     $cur = current_version($root);
@@ -184,8 +209,8 @@ try {
     $newer = version_compare($rel['version'], $cur, '>');
     if (($_POST['do'] ?? '') === 'install') {
         if (!$newer) out('<p>Already up to date (' . h($cur) . ').</p>');
-        install($root, $rel);
-        out('<p><b>Updated to ' . h($rel['version']) . '.</b> Reload the app (Ctrl+Shift+R). Delete <code>update.php</code> if you do not need it.</p>');
+        install($root, $rel, $bkDir);
+        out('<p><b>Updated to ' . h($rel['version']) . '.</b> Reload the app (Ctrl+Shift+R). </p>');
     }
     $form = '<form method="post"><input type="hidden" name="token" value="' . h((string)$_POST['token']) . '"><button name="do" value="install">Install ' . h($rel['version']) . '</button></form>';
     out('<p>Installed: <b>' . h($cur) . '</b><br>Latest: <b>' . h($rel['version']) . '</b></p>'

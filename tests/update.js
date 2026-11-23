@@ -17,6 +17,7 @@ const TYPES={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   remote='9.9.9';
   await p.click('[data-act=settings]');await p.waitForSelector('.setp');
   ok(/v\d+\.\d+\.\d+/.test(await p.textContent('.setp')),'settings shows the app version');
+  ok(!!(await p.$('[data-act=appinstall]')),'Settings offers Install app');await p.click('[data-act=appinstall]');await p.waitForSelector('#modal .sheet');ok(/Install Portfolio/.test(await p.textContent('#modal .sheet')),'Install app explains how to install when the browser gives no prompt');await p.click('#modal [data-act=close]');
   await p.click('[data-act=chkupd]');await p.waitForSelector('#upd',{timeout:5000});
   ok(/9\.9\.9/.test(await p.textContent('#upd')),'banner offers the newer version');
   await p.click('[data-act=updx]');ok(!(await p.$('#upd')),'banner can be dismissed');
@@ -33,5 +34,13 @@ const TYPES={'.html':'text/html','.js':'text/javascript','.css':'text/css','.jso
   await p.waitForSelector('text=Updated to v9.9.9',{timeout:30000});ok(/name="token"/.test(installBody),'install sends a passcode-derived token and reports success');
   ok(!installBody.includes(require('./lib').PASS),'the passcode itself is never sent');
   await p.click('[data-act=updtab][data-v=log]');ok(/Test note/.test(await p.textContent('.setp')),'release notes shown');
+  // Old layout: the Updates page offers Tidy up and sends a passcode-derived token.
+  let tidyBody='';await p.unroute('**/update.php');
+  await p.route('**/update.php',route=>{const bd=route.request().postData()||'';if(/do"\r\n\r\ntidy/.test(bd)){tidyBody=bd;return route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,version:local,tidy:true})})}
+    return route.fulfill({contentType:'application/json',body:JSON.stringify({installed:local,latest:local,newer:false,notes:'',auth:'passcode',asalt:'dGVzdHNhbHR0ZXN0c2FsdA',layout:'legacy'})})});
+  await p.click('[data-act=updtab][data-v=update]');await p.click('[data-act=updcheck]');await p.waitForSelector('[data-act=updtidy]');
+  ok(true,'an old-layout server gets a Tidy up button');
+  await p.click('[data-act=updtidy]');await p.waitForSelector('#pw');await p.fill('#pw',require('./lib').PASS);await p.click('[data-act=pwok]');
+  await p.waitForSelector('text=Server folder tidied',{timeout:30000});ok(/name="token"/.test(tidyBody)&&!tidyBody.includes(require('./lib').PASS)&&!(await p.$('[data-act=updtidy]')),'Tidy up sends only a token and the button goes away');
   srv.close();h.errors=h.errors.filter(e=>!/Service Worker registration blocked|status of 403/.test(e));await done(h);
 })().catch(e=>{console.error(e);process.exit(1)});

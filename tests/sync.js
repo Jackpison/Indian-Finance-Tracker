@@ -6,10 +6,10 @@ const { launch, ok, done, ROOT, PASS, loadDemo } = require('./lib');
 const site = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-site-'));
 for (const f of ['index.html', 'robots.txt', 'version.json', 'sw.js', 'manifest.webmanifest']) fs.copyFileSync(path.join(ROOT, f), path.join(site, f));
 for (const d of ['css', 'js', 'assets', 'vendor']) fs.cpSync(path.join(ROOT, d), path.join(site, d), { recursive: true });
-fs.copyFileSync(path.join(ROOT, 'deploy/php/sync.php'), path.join(site, 'sync.php'));
+fs.mkdirSync(path.join(site, 'server')); fs.copyFileSync(path.join(ROOT, 'deploy/php/sync.php'), path.join(site, 'server/sync.php'));
 const PORT = 8123 + Math.floor(Math.random() * 500), BASE = `http://127.0.0.1:${PORT}/`;
 const php = cp.spawn('php', ['-S', `127.0.0.1:${PORT}`, '-t', site], { stdio: 'ignore', env: { ...process.env, PHP_CLI_SERVER_WORKERS: '4' } });
-const post = async (body) => { const r = await fetch(BASE + 'sync.php', { method: 'POST', body: JSON.stringify(body) }); return { s: r.status, j: await r.json().catch(() => null) }; };
+const post = async (body) => { const r = await fetch(BASE + 'server/sync.php', { method: 'POST', body: JSON.stringify(body) }); return { s: r.status, j: await r.json().catch(() => null) }; };
 
 (async () => {
   await new Promise(r => setTimeout(r, 1200));
@@ -63,17 +63,17 @@ const post = async (body) => { const r = await fetch(BASE + 'sync.php', { method
   ok(/Synced/.test(await a.textContent('#sidefoot')) && (await a.$('#sidefoot [data-act=locknow]')) !== null, 'the side panel shows sync status and a Lock button');
   const info = (await post({ a: 'info' })).j;
   ok(info.exists && info.rev >= 1, 'the first push is on the server (revision ' + info.rev + ')');
-  for (let k = 0; k < 40 && !(fs.existsSync(path.join(site, 'sync-data/blob.php')) && fs.statSync(path.join(site, 'sync-data/blob.php')).size > 1000); k++) await new Promise(r => setTimeout(r, 250));
-  const stored = fs.readFileSync(path.join(site, 'sync-data/blob.php'), 'utf8').split('\n').slice(1).join('\n');
+  for (let k = 0; k < 40 && !(fs.existsSync(path.join(site, 'server/data/blob.php')) && fs.statSync(path.join(site, 'server/data/blob.php')).size > 1000); k++) await new Promise(r => setTimeout(r, 250));
+  const stored = fs.readFileSync(path.join(site, 'server/data/blob.php'), 'utf8').split('\n').slice(1).join('\n');
   { // Search the decoded bytes, not the base64 text: a short word can appear in random base64 by chance.
     const bl = JSON.parse(stored), raw = Buffer.from(bl.ct, 'base64'), words = ['SWIGGY', 'SALARY', 'Aarav', 'Meera', 'Anaya', 'HDFC', '"tx"', '"desc"'];
     ok(raw.length > 1000 && !words.some(w => raw.includes(w)) && !words.some(w => Object.keys(bl).concat(Object.keys(bl.lock)).includes(w)), 'the file on the server is ciphertext, none of the data is readable');
     ok(Object.keys(bl).sort().join() === 'ct,enc,format,iv,lock', 'the stored object has only ciphertext, iv and the key parameters');
   }
-  const meta = fs.readFileSync(path.join(site, 'sync-data/meta.php'), 'utf8');
+  const meta = fs.readFileSync(path.join(site, 'server/data/meta.php'), 'utf8');
   ok(meta.startsWith('<?php http_response_code(404)') && !meta.includes(PASS) && /"hash":"[0-9a-f]{64}"/.test(meta), 'the server keeps only a hash of the token, never the passcode');
-  ok(fs.existsSync(path.join(site, 'sync-data/.htaccess')), 'the data folder is closed to the web');
-  for (const f of ['blob.php', 'meta.php']) ok((await fetch(BASE + 'sync-data/' + f)).status === 404, 'sync-data/' + f + ' answers 404 even without .htaccess');
+  ok(fs.existsSync(path.join(site, 'server/data/.htaccess')), 'the data folder is closed to the web');
+  for (const f of ['blob.php', 'meta.php']) ok((await fetch(BASE + 'server/data/' + f)).status === 404, 'server/data/' + f + ' answers 404 even without .htaccess');
   ok((await post({ a: 'pull', token: '0'.repeat(64) })).s === 403, 'pulling with a wrong token is refused');
   ok((await post({ a: 'push', token: 'f'.repeat(64), base: 1, blob: { ct: 'x', iv: 'y', lock: { salt: 's', iter: 1 } } })).s === 403, 'pushing with a wrong token is refused');
   ok((await post({ a: 'pull', token: 'zz' })).s === 400, 'a malformed token is rejected');
@@ -114,6 +114,10 @@ const post = async (body) => { const r = await fetch(BASE + 'sync.php', { method
   ok(info3.rev >= 3, 'the new passcode was pushed to the server (revision ' + info3.rev + ')');
 
   A.errors = A.errors.filter(e => !/Service Worker|status of 409/i.test(e));
+  // An older install keeps sync.php next to index.html: it must still work and keep its data in sync-data/.
+  fs.copyFileSync(path.join(ROOT, 'deploy/php/sync.php'), path.join(site, 'sync.php'));
+  const old = await fetch(BASE + 'sync.php', { method: 'POST', body: JSON.stringify({ a: 'pull', tok: 'x' }) });
+  ok((old.headers.get('content-type') || '').includes('json') && fs.existsSync(path.join(site, 'sync-data')), 'the old layout (sync.php beside index.html) still answers and uses sync-data/');
   await B.browser.close(); php.kill();
   await done(A);
 })().catch(e => { console.error(e); php.kill(); process.exit(1); });

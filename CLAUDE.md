@@ -16,6 +16,8 @@
 - **Push:** `git -c push.negotiate=true push origin HEAD:main`.
 - **Tests:** `npm test` runs everything (parser, e2e, features, updater, sync, recovery, install). Keep it green.
   Run it before every commit.
+- **Desktop:** `desktop/` is an Electron wrapper (`npm run dist` there). It serves the same files from `app://`, has no network of its
+  own and only calls `server/sync.php` on the address typed in Settings. Release builds run in `release.yml`.
 - **Layout:** do not change the global page layout unless asked. Say what changed on screen.
 - **Handoff file:** after a major change (new feature area, rule change, release that changes how things work), write
   the next `handoff/Tracker-Handoff-vN.md` (local only, gitignored, N+1 of the newest) and send it to the user.

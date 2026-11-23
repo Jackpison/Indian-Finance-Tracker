@@ -19,6 +19,8 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -66,6 +68,8 @@ jobs:
             echo "## Install or update"
             echo
             echo "- **cPanel / any host:** download \`portfolio-v$V.zip\` below, upload it to your site folder and extract over the old files. Your data lives in the browser and is not touched. The one-click updater file \`update.php\` is a separate download below: upload it once, next to index.html."
+            echo "- **Desktop:** \`Portfolio-$V-Setup.exe\` or \`Portfolio-$V-Portable.exe\` (Windows), \`.dmg\` (Mac), \`.AppImage\` or \`.deb\` (Linux) are added below a few minutes after this release. They are not code signed, so Windows and macOS ask you to confirm once. The desktop app keeps its own data; move it from the website with a backup file."
+            echo "- **Phone, tablet or browser:** open your site and choose Install app (Settings, About, or the button in the side menu)."
             echo "- **Automatic:** FTPS deploys and the one-click \`update.php\` are described in the [README](https://github.com/${{ github.repository }}#releases-and-updates)."
             echo
             echo "## Verify the download"
@@ -106,3 +110,36 @@ jobs:
           server-dir: ${{ vars.FTP_DIR || './' }}
           # index.html is uploaded last by the action's diffing; version.json changes with every release,
           # which is how open browser tabs learn there is an update.
+
+  # Desktop apps (Windows .exe, Mac .dmg, Linux AppImage/.deb) built from the same files and added to the release.
+  # They are not code signed: Windows shows "unknown publisher" and macOS asks you to allow the app once.
+  desktop:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Build
+        working-directory: desktop
+        run: |
+          npm install --no-audit --no-fund
+          npm run dist
+      - name: Add to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v${{ needs.release.outputs.version }}"
+          FILES=$(find desktop/dist -maxdepth 1 -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' \))
+          echo "$FILES"
+          [ -n "$FILES" ] || { echo "::error::No installers were built"; exit 1; }
+          gh release upload "$TAG" $FILES --clobber

@@ -85,7 +85,7 @@ Versions follow [semantic versioning](https://semver.org/) and every change is l
 |---|---|---|
 | **Manual** | none | Download the new ZIP from Releases, upload and extract over the old files in File Manager. |
 | **Automatic over FTPS** | In the GitHub repo: Settings, Secrets and variables, Actions. Add secrets `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD`; variables `DEPLOY_FTP=true` and `FTP_DIR` (for example `public_html/finance/`). Use a cPanel FTP account limited to that folder. | Publishing a release uploads it to your site. |
-| **One-click on the server** (also in the app under **Updates**) | Download `update.php` from the release page (a separate file next to the ZIP) and upload it next to `index.html`, once. Open the app, go to **Updates**, press Check, then Install and enter your Portfolio passcode. It needs the encrypted sync (`sync.php`) to have run once, because the passcode is checked against it. | The server downloads the latest release from GitHub, checks its SHA-256, backs up the old files to `.portfolio-backup/` and installs. It never touches your data, `sync-data/` or `update.config.php`. |
+| **One-click on the server** (also in the app under **Updates**) | Download `update.php` from the release page (a separate file next to the ZIP) and upload it next to `index.html`, once. The first install (or **Tidy up** on the Updates page) moves it, `sync.php`, the sync data and the backups into one `server/` folder. Open the app, go to **Updates**, press Check, then Install and enter your Portfolio passcode. It needs the encrypted sync (`sync.php`) to have run once, because the passcode is checked against it. | The server downloads the latest release from GitHub, checks its SHA-256, backs up the old files to `.portfolio-backup/` and installs. It never touches your data, `sync-data/` or `update.config.php`. |
 
 Your data lives in each browser and is never touched by an update. Open tabs notice a new version within seconds of loading (the app compares its version with the site's `version.json`, a same-origin request) and show a **Reload** prompt. **Settings, Check for updates** does it on demand.
 
@@ -129,7 +129,8 @@ vendor/           pdf.js, SheetJS, Inter and Geist Mono fonts (no CDN)
 assets/           logo
 samples/          example statements
 deploy/hosting/   .htaccess, nginx, Caddy, Docker, Netlify, Vercel
-deploy/php/       sync.php (encrypted sync), update.php (one-click updater), update.config.example.php
+deploy/php/       sync.php (encrypted sync), update.php (one-click updater); on your host both live in server/
+desktop/          Electron wrapper for Windows, Mac and Linux (see below)
 scripts/          bump.sh (version everywhere), make-zip.sh (release ZIP)
 tests/            Playwright end-to-end tests (fictional data only)
 docs/             NOTES.md (how it is built and why), screenshots/
@@ -148,3 +149,21 @@ Multi-account statements with Deposits / Withdrawals / Balance columns (tested o
 <a href="https://www.flaticon.com/free-icons/budget" title="budget icons">Budget icons created by Icon Place - Flaticon</a>
 
 Fonts: Inter by Rasmus Andersson and Geist Mono by Vercel (SIL Open Font License). PDF parsing by pdf.js (Mozilla). Spreadsheet parsing by SheetJS.
+
+## Desktop app and installing
+
+- **Install from the browser:** open the site and use **Install app** (Settings, About, or the button at the bottom of the side menu). On iPhone use Share, Add to Home Screen.
+- **Desktop downloads** (Windows `.exe`, Mac `.dmg`, Linux `.AppImage`/`.deb`) are attached to every release. They show the same app in its own window, with the same encryption and no network of their own. They are not code signed, so Windows ("unknown publisher") and macOS ask you to confirm once. The desktop app keeps its own data: move it between the website and the desktop with a backup file, or use Sync after typing your own server address in Settings.
+- **Build one yourself:** `cd desktop && npm install && npm start` (run) or `npm run dist` (installer in `desktop/dist`).
+
+## Your server folder
+
+A host that runs the updater and sync ends up with only the app next to `server/`:
+
+```
+index.html  sw.js  manifest.webmanifest  robots.txt  version.json  .htaccess
+assets/  css/  js/  vendor/
+server/   sync.php  update.php  data/ (encrypted copy)  backup/ (before each update)
+```
+
+Older sites with `sync.php` and `update.php` next to `index.html` keep working until you press **Tidy up** on the Updates page.

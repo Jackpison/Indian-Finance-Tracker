@@ -26,7 +26,8 @@ css/app.css          all styles; later blocks override earlier ones
 sw.js                offline shell (network first)
 vendor/              pdf.js, SheetJS, fonts
 deploy/hosting/      .htaccess, nginx, Caddy, Docker, Netlify, Vercel
-deploy/php/          sync.php (encrypted sync), update.php (one-click updater), update.config.example.php
+deploy/php/          sync.php (encrypted sync), update.php (one-click updater), update.config.example.php (legacy)
+desktop/             Electron wrapper (main.js, preload.js, serve.js, prepare.js); builds in release.yml
 scripts/             bump.sh (version everywhere), make-zip.sh (release ZIP)
 tests/               Playwright tests, lib.js helpers, demo-data.js (fictional family)
 samples/             fictional statements
@@ -76,6 +77,19 @@ handoff/             local only (gitignored): Tracker-Handoff-vN.md for starting
   encrypts a copy of the passcode kept in this browser's lock settings. It works in the browser that holds the data;
   a fresh browser still needs the passcode or a backup file. Unlock lockout: 3 wrong tries start a wait (5 s up to
   15 min) that survives reloads.
+
+## Server layout and desktop
+
+- **Host layout:** the app files next to `server/` (`sync.php`, `update.php`, `data/`, `backup/`). The release ZIP still carries
+  `sync.php` at its root so that every older updater accepts it; the new `update.php` files it under `server/`, copies itself
+  there, moves `sync-data` and `.portfolio-backup`, and deletes the old root copies (`tidy()`). Both PHP files detect the old
+  layout by `index.html` sitting next to them. The app tries `server/` first and falls back to the root files on a plain 404.
+- **Desktop** (`desktop/`): Electron, `app://` scheme registered secure (so WebCrypto and IndexedDB work), sandboxed window,
+  context isolation, no remote content. Its only outside call is `sync.php` on the address typed in Settings, made by the main
+  process (the page keeps `connect-src 'self'`). Updates are new installers; there is no self-update. Not code signed.
+  Checked under Xvfb: loads, creates a passcode, data survives a restart. Builds for Windows and Mac run only in CI.
+- **Install app:** the manifest has 192, 512 and maskable icons (Chrome needs them); `beforeinstallprompt` is kept and offered
+  from Settings and the side menu footer.
 
 ## Findings
 

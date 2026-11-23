@@ -1,0 +1,23 @@
+// Desktop app helpers: which files the app:// scheme may serve and which server addresses are accepted. No Electron needed.
+const path = require('path'), fs = require('fs');
+const { resolveFile, mimeOf, normalizeServer, CALLABLE, callUrls } = require('../desktop/serve');
+let fails = 0; const ok = (c, m) => { console.log((c ? '  ok   ' : '  FAIL ') + m); if (!c) fails++; };
+console.log('Desktop app');
+const root = path.resolve('/srv/app');
+ok(resolveFile(root, '/') === path.join(root, 'index.html'), 'the root serves index.html');
+ok(resolveFile(root, '/js/app.js') === path.join(root, 'js/app.js'), 'a normal file resolves inside the app folder');
+ok(resolveFile(root, '/../etc/passwd') === null && resolveFile(root, '/%2e%2e/secret') === null && resolveFile(root, '/js/../../x') === null, 'paths that climb out of the app folder are refused');
+ok(resolveFile(root, '/a%00b') === null && resolveFile(root, '/%E0%A4%A') === null, 'null bytes and broken escapes are refused');
+ok(mimeOf('x.js').startsWith('text/javascript') && mimeOf('x.woff2') === 'font/woff2' && mimeOf('x.bin') === 'application/octet-stream', 'file types are named');
+ok(normalizeServer('').ok && normalizeServer('').url === '', 'an empty address clears the setting');
+ok(normalizeServer(' https://money.example.com/ ').url === 'https://money.example.com', 'a trailing slash and spaces are dropped');
+ok(normalizeServer('https://example.com/folder/?a=1#x').url === 'https://example.com/folder', 'a sub folder is kept, the query is dropped');
+ok(!normalizeServer('http://example.com').ok && !normalizeServer('ftp://example.com').ok && !normalizeServer('example.com').ok, 'http, ftp and bare names are refused');
+ok(normalizeServer('http://localhost:8080').ok && normalizeServer('http://127.0.0.1:9').ok, 'http is allowed for localhost only');
+ok(!normalizeServer('https://user:pw@example.com').ok, 'an address with a password in it is refused');
+ok(CALLABLE.has('sync.php') && !CALLABLE.has('update.php') && callUrls('https://a.b', 'sync.php').join() === 'https://a.b/server/sync.php,https://a.b/sync.php', 'the desktop app may call sync.php only, in server/ first then the old place');
+const m = JSON.parse(fs.readFileSync(path.join(__dirname, '../manifest.webmanifest'), 'utf8'));
+ok(m.icons.some(i => i.sizes === '192x192') && m.icons.some(i => i.sizes === '512x512') && m.icons.some(i => i.purpose === 'maskable') && m.icons.every(i => fs.existsSync(path.join(__dirname, '..', i.src))), 'the web manifest has 192, 512 and maskable icons that exist (needed for Install app)');
+const dv = JSON.parse(fs.readFileSync(path.join(__dirname, '../desktop/package.json'), 'utf8')).version, wv = JSON.parse(fs.readFileSync(path.join(__dirname, '../version.json'), 'utf8')).version;
+ok(dv === wv, 'the desktop package version matches the app version (' + dv + ' / ' + wv + ')');
+process.exit(fails ? 1 : 0);

@@ -4,6 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-23
+### Added
+- **Desktop app** for Windows (`.exe` installer and portable), Mac (`.dmg`) and Linux (`.AppImage`, `.deb`), built by the release workflow from the same files. Same encryption, same screens, its own window and no network of its own. Not code signed, so Windows and macOS ask you to confirm once. It keeps its own data (move it with a backup file) and can sync with your own server: type the address in Settings, Sync to your server.
+- **Install app** button (Settings, About, and the side menu when your browser offers it) for phones, tablets and computers, with steps for iPhone. The web manifest now has 192, 512 and maskable icons.
+### Changed
+- **Tidier server folder.** On your host the app now sits next to one `server/` folder holding `sync.php`, `update.php`, the sync data (`data/`) and update backups (`backup/`). The Updates page has a **Tidy up** button for sites set up the old way; installing an update does the same automatically once you have uploaded the new `update.php` from the release page. Older layouts keep working until then, and sync keeps its data.
+- The release page explains the desktop and Install app options.
+
 ## [0.8.1] - 2026-11-23
 ### Changed
 - **Calmer Overview.** The member and period filters are now segmented controls (a recessed track with the chosen option raised). **Money in and out** is flatter: thinner bars, no shadows, a dashed net line with small hollow dots and dotted grid lines. The stacked **Needs attention** cards are now one card with a row per item. The Income and Spending bars are slim solid bars instead of hatched blocks. The page layout is unchanged.

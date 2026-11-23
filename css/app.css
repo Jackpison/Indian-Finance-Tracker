@@ -629,3 +629,5 @@ svg[aria-label=Breakdown]:hover{transform:scale(1.025)}
 .attn .reviewq b{font-weight:600}
 .hatch{height:6px;border-radius:99px;margin-top:12px;background:color-mix(in srgb,var(--c) 14%,transparent)}
 .hatch::after{border-radius:99px;background:var(--c);border-right:0}
+/* install button in the side menu footer (shown only when the browser offers installing) */
+@media(min-width:1100px){#sidefoot{flex-wrap:wrap}.tabs button.sfinst{flex:1 1 100%;color:var(--accent)}}

@@ -11,6 +11,7 @@ trap 'rm -rf "$STAGE"' EXIT
 cp -r index.html robots.txt version.json sw.js manifest.webmanifest css js assets vendor "$STAGE/"
 # update.php and its example config are NOT in the ZIP: the in-app updater refuses files it does not manage, and a ZIP it cannot install is worse than no ZIP.
 # They are published next to it as separate release assets (see release.yml).
+# sync.php stays at the ZIP root on purpose (older updaters accept it); the newer updater files it under server/.
 cp deploy/php/sync.php "$STAGE/"
 cp deploy/hosting/htaccess.txt "$STAGE/.htaccess"
 ( cd "$STAGE" && zip -qr "$ABS" . )

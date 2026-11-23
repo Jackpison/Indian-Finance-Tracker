@@ -1,0 +1,32 @@
+{
+  "name": "portfolio-desktop",
+  "productName": "Portfolio",
+  "version": "0.9.0",
+  "private": true,
+  "description": "Portfolio: a private money dashboard for Indian families, as a desktop app",
+  "author": "Portfolio",
+  "license": "MIT",
+  "main": "main.js",
+  "scripts": {
+    "prepare-app": "node prepare.js",
+    "start": "node prepare.js && electron .",
+    "dist": "node prepare.js && electron-builder --publish never"
+  },
+  "devDependencies": {
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "io.github.jackpison.portfolio",
+    "productName": "Portfolio",
+    "copyright": "Portfolio",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "serve.js", "package.json", "build/icon.png", "app/**/*"],
+    "artifactName": "Portfolio-${version}-${os}-${arch}.${ext}",
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }] },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "artifactName": "Portfolio-${version}-Setup.${ext}" },
+    "portable": { "artifactName": "Portfolio-${version}-Portable.${ext}" },
+    "mac": { "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }], "category": "public.app-category.finance", "identity": null },
+    "linux": { "target": ["AppImage", "deb"], "category": "Office", "maintainer": "Portfolio" }
+  }
+}

@@ -7,7 +7,7 @@
  * and the passcode never leaves the browser. The only thing the server learns is a second value derived from
  * the passcode, hashed again with SHA-256, which proves a request comes from someone who knows the passcode.
  *
- * Files are kept in sync-data/ (created on first use, closed to the web with .htaccess and index.html).
+ * Files are kept in server/data/ (older installs: sync-data/; created on first use, closed to the web with .htaccess and index.html).
  * If your host is not Apache, block web access to the sync-data folder in its configuration.
  */
 declare(strict_types=1);
@@ -36,9 +36,11 @@ if ($raw === false || strlen($raw) > MAX_BYTES + 1024) out(['error' => 'Too larg
 $req = json_decode($raw, true);
 if (!is_array($req)) out(['error' => 'Bad request'], 400);
 
-$dir = __DIR__ . '/sync-data';
+$legacy = is_file(__DIR__ . '/index.html'); // old layout: next to index.html; new layout: in <site>/server/
+$dir = __DIR__ . ($legacy ? '/sync-data' : '/data');
+if (!$legacy && !is_dir($dir) && is_dir(dirname(__DIR__) . '/sync-data')) @rename(dirname(__DIR__) . '/sync-data', $dir);
 if (!is_dir($dir)) {
-    if (!@mkdir($dir, 0700, true) && !is_dir($dir)) out(['error' => 'Cannot create sync-data/ here. Make this folder writable.'], 500);
+    if (!@mkdir($dir, 0700, true) && !is_dir($dir)) out(['error' => 'Cannot create the data folder here. Make this folder writable.'], 500);
 }
 @file_put_contents($dir . '/.htaccess', "Require all denied\n<IfModule !mod_authz_core.c>\nOrder deny,allow\nDeny from all\n</IfModule>\n");
 @file_put_contents($dir . '/index.html', '');
