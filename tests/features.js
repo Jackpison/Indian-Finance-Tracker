@@ -85,7 +85,7 @@ ok(/already recorded under Asha/.test(await p.textContent('#toast')),'importing 
 await p.click('[data-act=impcancel]');await p.waitForTimeout(300);
 console.log('Updater');
 {const zip=fs.readFileSync(path.join(ROOT,'scripts/make-zip.sh'),'utf8'),php=fs.readFileSync(path.join(ROOT,'deploy/php/update.php'),'utf8');
- ok(/sync\.php/.test(zip)&&!/cp [^\n]*update\.php/.test(zip),'the release ZIP carries sync.php and leaves the updater files out (they ship as a separate release asset)');
+ ok(/sync\.php/.test(zip)&&/cp [^\n]*update\.php/.test(zip)&&!/update\.config\.example/.test(zip.replace(/#[^\n]*/g,'')),'the release ZIP carries sync.php and update.php, not the example config');
  ok(/DEFAULT_REPO/.test(php),'checking works without a config file');
  const gate=php.indexOf("if (!$sm && !$configured) jout"),cmp=php.indexOf("hash_equals((string)$sm['hash']");
  ok(gate>0&&cmp>gate,'installing with neither a sync copy nor a configured password is refused before anything is compared');}

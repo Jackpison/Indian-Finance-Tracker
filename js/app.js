@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.9.1'; /* keep in sync with version.json and package.json: run scripts/bump.sh */
+const VERSION='0.9.2'; /* keep in sync with version.json and package.json: run scripts/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -1065,7 +1065,7 @@ function updView(){if(DESK)return`<div class="setp"><div class="scard"><div clas
   const u=S._u||{},tab=S._ut||'update',web=location.protocol.startsWith('http');
   const tabs=`<div class="segc" role="group" aria-label="Updates">${[['update','Update'],['log','Changelog']].map(([k,l])=>`<button class="${tab===k?'on':''}" data-act="updtab" data-v="${k}">${l}</button>`).join('')}</div>`;
   const status=u.busy?'Working…':u.err?`<span class="out">${esc(u.err)}</span>`:u.tidied?'<b class="in">Server folder tidied.</b> The PHP files now live in <code>server/</code>.':u.done?`<b class="in">Updated to v${esc(u.done)}.</b> Reload to start using it.`:u.latest?(u.newer?`Version <b>v${esc(u.latest)}</b> is available.`:`You have the newest version (v${esc(u.installed)}).`):'Press Check now to ask GitHub for the latest release.';
-  const setup=u.nophp||!web?`<div class="scard" style="margin-top:14px"><div class="srow"><div class="st"><b>One-time setup on your site</b><span>${web?'This site has no updater yet: <code>update.php</code> is missing.':'Updates only work on a site served over http(s).'} <code>update.php</code> is a separate download on the release page: upload it into your site folder (next to <code>index.html</code>, or into a <code>server</code> folder) and press Check now again. Checking needs nothing else. Installing is confirmed with your Portfolio passcode.</span></div></div></div>`:'';
+  const setup=u.nophp||!web?`<div class="scard" style="margin-top:14px"><div class="srow"><div class="st"><b>One-time setup on your site</b><span>${web?'This site has no updater yet: <code>update.php</code> is missing.':'Updates only work on a site served over http(s).'} <code>update.php</code> comes in the release ZIP and as a separate download on the release page: upload it into your site folder (next to <code>index.html</code>, or into a <code>server</code> folder) and press Check now again. Checking needs nothing else. Installing is confirmed with your Portfolio passcode.</span></div></div></div>`:'';
   const pill=u.done?'<span class="tg ok">Updated</span>':u.latest?(u.newer?'<span class="tg warn">Update available</span>':'<span class="tg ok">Up to date</span>'):'';
   const body=tab==='log'?`<div class="scard"><div class="srow"><div class="st"><b>Release notes</b><span style="white-space:pre-wrap;display:block;margin-top:6px">${u.notes?esc(u.notes):'Press Check now on the Update tab to load the latest release notes from GitHub.'}</span></div></div></div>`:
   `<div class="scard"><div class="srow"><div class="st"><b>Update from GitHub</b><span>${status}</span></div><div class="sc"><span class="faint" style="font-size:13px">Installed v${VERSION}</span>${pill}<button class="btn sm" data-act="updcheck" ${u.busy?'disabled':''}>Check now</button>${u.done?'<button class="btn sm primary" data-act="reload">Reload</button>':''}</div></div>

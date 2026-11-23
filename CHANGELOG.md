@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-11-23
+### Changed
+- **`update.php` is back in the release ZIP.** Extracting the ZIP on your site now gives you the updater too, so the Updates page works without a separate upload. It is still a separate download as well. (Updaters older than 0.7.3 refuse it; those must upload the new `update.php` by hand once.)
+
 ## [0.9.1] - 2026-11-23
 ### Fixed
 - The Linux desktop build now also produces the `.deb` (it stopped for lack of a project homepage, so the Linux files were missing from 0.9.0). Windows and Mac files were already built.

@@ -7,7 +7,7 @@ const t = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-inst-')), site = path.join(t
 console.log('Updater install');
 cp.execFileSync('bash', [path.join(ROOT, 'scripts/make-zip.sh'), path.join(t, 'p.zip')], { stdio: 'ignore' });
 const lst = cp.execFileSync('unzip', ['-Z1', path.join(t, 'p.zip')]).toString().split('\n');
-ok(!lst.includes('update.php') && !lst.includes('update.config.example.php') && lst.includes('sync.php'), 'the release ZIP holds the app and sync.php (older updaters accept it), not the updater files the updater refuses');
+ok(lst.includes('update.php') && lst.includes('sync.php') && !lst.includes('update.config.example.php'), 'the release ZIP holds the app, sync.php and update.php (so a hand-extracted site can update itself), not the example config');
 // A ZIP shaped like the old releases (with update.php and an example config) must still install and tidy up.
 fs.mkdirSync(path.join(t, 'x')); cp.execFileSync('unzip', ['-q', path.join(t, 'p.zip'), '-d', path.join(t, 'x')]);
 fs.writeFileSync(path.join(t, 'x/update.php'), '<?php // NEW'); fs.writeFileSync(path.join(t, 'x/update.config.example.php'), '<?php return [];');
