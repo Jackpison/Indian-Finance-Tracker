@@ -4,6 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-23
+### Changed
+- **Calmer Overview.** The member and period filters are now segmented controls (a recessed track with the chosen option raised). **Money in and out** is flatter: thinner bars, no shadows, a dashed net line with small hollow dots and dotted grid lines. The stacked **Needs attention** cards are now one card with a row per item. The Income and Spending bars are slim solid bars instead of hatched blocks. The page layout is unchanged.
+### Accessibility
+- Every screen in light and dark now passes an automated WCAG 2 AA scan (`tests/a11y.js`, part of `npm test`).
+- Darker greens, reds, greys and amber so small text has enough contrast; coloured type labels in Investments are readable.
+- The side menu is a navigation landmark (`aria-current` marks the open page) instead of a mis-built tab list. Dialogs are named, headings follow a sensible order, unlabelled selects and search boxes have labels, and the filter bar is a landmark.
+
 ## [0.8.0] - 2026-11-23
 ### Added
 - **Needs attention** on Overview: one card per thing worth a look. Transactions without a category, **months with no transactions** between two others on an account (usually a missing statement), **deposits maturing within 30 days**, and accounts whose statement is more than 45 days old, each with a button that takes you there.

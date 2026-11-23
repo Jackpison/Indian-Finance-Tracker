@@ -79,6 +79,7 @@ handoff/             local only (gitignored): Tracker-Handoff-vN.md for starting
 
 ## Findings
 
+- Accessibility is checked by `tests/a11y.js` (axe-core, light and dark, reduced motion so fade-ins do not skew colours; the CSP is bypassed in that test only so the scanner can be injected). Keep colour tokens at 4.5:1 for small text. The side menu is a `<nav>` with `aria-current`, not a tablist. Tag colours on a light chip are mixed toward the text colour to stay readable.
 - A 50 ms auto-focus on the passcode gate could drop typed text into the wrong box and made tests flaky; it now
   only focuses when nothing is focused.
 - An updater that rejects files it does not manage turns one stray file in a ZIP into a failed install every time.
