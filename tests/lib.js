@@ -8,6 +8,9 @@ exports.launch=async(opts={})=>{
   const ctx=await browser.newContext({viewport:{width:1280,height:900},permissions:['clipboard-read','clipboard-write'],...opts});
   const page=await ctx.newPage();const errors=[];
   /* The passcode is mandatory, so every page load that shows the 'create passcode' gate is passed with this fictional one. */
+  /* Settings has its own left menu; a click on a main tab first leaves Settings, as a person would. */
+  const clk=page.click.bind(page);
+  page.click=async(sel,...r)=>{if(typeof sel==='string'&&sel.startsWith('#tabs [data-v=')&&!(await page.$(sel))&&await page.$('[data-act=sback]'))await clk('[data-act=sback]');return clk(sel,...r)};
   const go=page.goto.bind(page);
   page.goto=async(...a)=>{const r=await go(...a);if(!opts.noGate)await exports.gate(page);return r};
   page.on('pageerror',e=>errors.push('PAGE '+e.message));

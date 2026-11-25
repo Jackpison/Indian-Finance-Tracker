@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.9.5] - 2026-11-25
+### Changed
+- Settings sections (General, Family, Security, Sync and install, Backup and imports, Data tools, About, Danger zone) moved out of the page into the left menu. Pressing the gear at the top swaps the left menu to those sections, plus Updates and Import history, with a Back to app link; the current section highlights as you scroll. The main menu no longer carries Settings and Updates, so it is less crowded, and the Settings page is a single clean column with room to grow. On narrow screens the section list stays at the top of the page.
+
 ## [0.9.4] - 2026-11-25
 ### Added
 - Two more appearance modes, Total light and Total dark, where the sidebar matches the page. Light and Dark keep the half-and-half look (dark sidebar beside a light page, or the reverse). Pick one under Settings, General, Appearance, or from the search box; the sun and moon button flips within the family you chose.

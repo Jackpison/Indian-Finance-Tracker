@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.9.4'; /* keep in sync with version.json and package.json: run scripts/bump.sh */
+const VERSION='0.9.5'; /* keep in sync with version.json and package.json: run scripts/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -363,16 +363,23 @@ bal:'<path d="M3 10l9-6 9 6"/><path d="M5 10v8M9 10v8M15 10v8M19 10v8"/><path d=
 up:'<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
 vault:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',plus:'<path d="M12 5v14M5 12h14"/>',dots:'<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>'};
 const svg=(p,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
-const TABS=[['overview','Overview',ICON.overview,'Summary'],['bal','Portfolio',ICON.bal],['inv','Investments',ICON.inv,'Wealth'],['ana','Analytics',ICON.ana],['tx','Transactions',ICON.tx,'Money'],['cards','Cards',ICON.cards],['rec','Recurring',ICON.rec],['vault','Vault',ICON.vault,'Private'],['settings','Settings',ICON.gear,'Preferences'],['upd','Updates',ICON.upd],['up','Uploads',ICON.up,'',1]];
+const TABS=[['overview','Overview',ICON.overview,'Summary'],['bal','Portfolio',ICON.bal],['inv','Investments',ICON.inv,'Wealth'],['ana','Analytics',ICON.ana],['tx','Transactions',ICON.tx,'Money'],['cards','Cards',ICON.cards],['rec','Recurring',ICON.rec],['vault','Vault',ICON.vault,'Private'],['settings','Settings',ICON.gear,'',1],['upd','Updates',ICON.upd,'',1],['up','Uploads',ICON.up,'',1]];
+const SETV=['settings','upd','up'];
+const SETNAV=[['general','General','gear'],['family','Family','bal'],['security','Security','vault'],['syncandinstall','Sync and install','upd'],['backupandimports','Backup and imports','up'],['datatools','Data tools','rec'],['about','About','overview'],['dangerzone','Danger zone','dots']];
 const HEAD={overview:['Overview','Your money at a glance'],bal:['Portfolio','What you hold today, in total and per person'],tx:['Transactions','Every payment, searchable and editable'],cards:['Cards','Spending and limits on your credit cards'],rec:['Recurring','Bills and subscriptions repeating every month'],inv:['Investments','What you own and what it is worth'],ana:['Analytics','Trends over time'],vault:['Vault','Card and ID numbers, kept masked'],up:['Uploads','Every file you have imported'],upd:['Updates','Check GitHub for a new version and install it with your password'],settings:['Settings','Family, security, sync, backup and data tools']};
 function moveInd(){const tb=$('#tabs'),b=tb.querySelector('[aria-current=page]'),i=tb.querySelector('.ind');if(b&&i){i.style.left=b.offsetLeft+'px';i.style.width=b.offsetWidth+'px'}}
 function renderChrome(){
   const tb=$('#tabs');
-  if(!tb.dataset.ready){tb.innerHTML=TABS.filter(t=>!t[4]).map(([k,l,ic,g])=>(g?`<div class="navh">${g}</div>`:'')+`<button data-act="view" data-v="${k}">${svg(ic,17)}<span>${l}</span>${k==='upd'?`<em class="ver">v${VERSION}</em>`:''}</button>`).join('')+'<i class="ind"></i>';tb.dataset.ready='1';const br=document.querySelector('.top .brand');if(br){const c=br.cloneNode(true);c.classList.add('sidebrand');tb.prepend(c)}}
-  tb.querySelectorAll('button[data-v]').forEach(b=>{if(b.dataset.v===(S.view==='up'?'settings':S.view))b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});moveInd();
+  const mode=SETV.includes(S.view)?'set':'main';
+  if(tb.dataset.ready!==mode){const btn=(k,l,ic,x)=>`<button data-act="view" data-v="${k}">${svg(ic,17)}<span>${l}</span>${x||''}</button>`;
+   tb.innerHTML=(mode==='main'?TABS.filter(t=>!t[4]).map(([k,l,ic,g])=>(g?`<div class="navh">${g}</div>`:'')+btn(k,l,ic)).join('')
+    :`<button class="sback" data-act="sback">${svg('<path d="M15 6l-6 6 6 6"/>',17)}<span>Back to app</span></button><div class="navh">Settings</div>`+SETNAV.map(([i,l,ic])=>`<button data-act="sgo" data-v="s-${i}" data-sec="${i}">${svg(ICON[ic],17)}<span>${l}</span></button>`).join('')+`<div class="navh">App</div>`+btn('upd','Updates',ICON.upd,`<em class="ver">v${VERSION}</em>`)+btn('up','Import history',ICON.up))+'<i class="ind"></i>';
+   tb.dataset.ready=mode;const br=document.querySelector('.top .brand');if(br){const c=br.cloneNode(true);c.classList.add('sidebrand');tb.prepend(c)}}
+  tb.querySelectorAll('button[data-v]:not([data-sec])').forEach(b=>{if(b.dataset.v===S.view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});moveInd();
+  if(S.view==='settings'&&!tb.querySelector('[data-sec][aria-current]')){const f=tb.querySelector('[data-sec]');if(f)f.setAttribute('aria-current','true')}
   {let ft=$('#sidefoot');if(!ft){ft=document.createElement('div');ft.id='sidefoot';tb.appendChild(ft)}
    const st=!sy.on?['off','Sync is off']:sy.err==='conflict'?['warn','Sync needs your choice']:sy.err?['warn','Sync problem']:['ok',sy.last?'Synced '+agoTxt(sy.last):'Sync is on'];
-   ft.innerHTML=`<button class="sfrow" data-act="settings" title="Open sync and install settings" data-sec="s-syncandinstall"><i class="sfd ${st[0]}"></i><span>${st[1]}</span></button>${lockMeta?`<button class="sflock" data-act="locknow" title="Lock now" aria-label="Lock now">${svg(ICON.vault||ICON.lock,16)}</button>`:''}`;
+   ft.innerHTML=`<button class="sfrow" data-act="settings" title="Open sync and install settings" data-goto="s-syncandinstall"><i class="sfd ${st[0]}"></i><span>${st[1]}</span></button>${lockMeta?`<button class="sflock" data-act="locknow" title="Lock now" aria-label="Lock now">${svg(ICON.vault||ICON.lock,16)}</button>`:''}`;
    const ub=tb.querySelector('[data-v=upd]');if(ub)ub.classList.toggle('hasupd',!!updAvail)}
   const dk=(k,l)=>`<button class="${S.view===k?'on':''}" data-act="view" data-v="${k}" aria-label="${l}">${svg(ICON[k],20)}<span>${l}</span></button>`;
   $('#dock').innerHTML=dk('overview','Home')+dk('tx','Activity')+`<button class="fab" data-act="fab" aria-label="Add or import">${svg(ICON.plus,24)}</button>`+dk('inv','Invest')+`<button data-act="more" class="${['cards','rec','up','vault','ana'].includes(S.view)?'on':''}" aria-label="More">${svg(ICON.dots,20)}<span>More</span></button>`;
@@ -591,7 +598,7 @@ function yoyChart(el,ft,fys){const W=Math.max(320,el.clientWidth),H=330,m={l:54,
   MN.forEach((n,j)=>{const rows=shown.map(f=>[f,ft[f].months[j]]).filter(r=>r[1]).sort((a,b)=>b[1].sp-a[1].sp).slice(0,8);s+=`<rect class="hit" data-x="${x(j)}" x="${x(j)-band/2}" y="${m.t}" width="${band}" height="${H-m.t-m.b}" fill="transparent" data-tip="${esc(`<b>${n}</b><br>`+rows.map(r=>`<span style="color:${col(list.indexOf(r[0]))}">●</span> ${fyLabel(r[0]).replace('FY ','')} ${compact(r[1].sp)}`).join('<br>'))}"/>`});
   el.innerHTML=s+'</svg>';const lg=document.getElementById('ch-yoy-l');if(lg)lg.innerHTML=list.slice().reverse().map(f=>`<button class="ychip ${hide[f]?'off':''}" data-act="yoytog" data-v="${f}"><i style="background:${col(list.indexOf(f))}"></i>${fyLabel(f).replace('FY ','')}</button>`).join('')}
 
-function render(){CH.length=0;renderChrome();const v={ana:anaView,overview,bal:balView,tx:txView,cards,inv,rec,up:uploadsView,vault:vaultView,settings:settingsView,upd:updView}[S.view];$('#main').innerHTML=(S.view==='overview'||S.view==='tx'||S.view==='bal'?bkBanner():'')+v();after()}
+function render(){if(!SETV.includes(S.view))S.back=S.view;CH.length=0;renderChrome();const v={ana:anaView,overview,bal:balView,tx:txView,cards,inv,rec,up:uploadsView,vault:vaultView,settings:settingsView,upd:updView}[S.view];$('#main').innerHTML=(S.view==='overview'||S.view==='tx'||S.view==='bal'?bkBanner():'')+v();after()}
 let lastSig='';
 function after(){
   const sig=S.view+'|'+S.range+'|'+S.member,fresh=sig!==lastSig;lastSig=sig;const m=$('#main');m.classList.toggle('noanim',!fresh);
@@ -1092,7 +1099,7 @@ function settingsView(){
   const sec=(t,rows,d)=>`<section class="ssec" id="s-${t.toLowerCase().replace(/[^a-z]+/g,'')}"><h3>${svg(ICON[(nav.find(n=>n[1]===t)||[])[2]]||ICON.gear,15)}${t}</h3>${d?`<p class="sdesc">${d}</p>`:''}<div class="scard">${rows}</div></section>`;
   const b=(l,act,cls='',id='')=>`<button class="btn sm ${cls}" data-act="${act}"${id?` id="${id}"`:''}>${l}</button>`;
   const mem=S.members.map(m=>`<div class="srow"><div class="st"><b style="display:flex;align-items:center;gap:8px"><span class="dot" style="--c:${m.color}"></span><input class="in-t plain" value="${esc(m.name)}" data-change="mname" data-id="${m.id}" aria-label="Member name"></b></div><div class="sc">${S.members.length>1?b('Remove','mdel','danger'):''}</div></div>`).join('');
-  const nav=[['general','General','gear'],['family','Family','bal'],['security','Security','vault'],['syncandinstall','Sync and install','upd'],['backupandimports','Backup and imports','up'],['datatools','Data tools','rec'],['about','About','overview'],['dangerzone','Danger zone','dots']];
+  const nav=SETNAV;
   return`<div class="setl"><nav class="snav" aria-label="Settings sections">${nav.map(([i,l,ic])=>`<button data-act="sgo" data-v="s-${i}">${svg(ICON[ic],16)}<span>${l}</span></button>`).join('')}</nav><div class="setp">
   ${sec('General',row('Appearance','Half and half puts a dark sidebar beside a light page, or the reverse. Total keeps the sidebar and page the same.',`<div class="themes" role="group" aria-label="Appearance">${[['light','Light','half and half'],['dark','Dark','half and half'],['tlight','Total light','one tone'],['tdark','Total dark','one tone']].map(([k,l,d])=>`<button class="tt" data-act="theme" data-v="${k}" aria-pressed="${themeMode===k}"><span class="tp tp-${k}"><i></i><b></b></span><strong>${l}</strong><small>${d}</small></button>`).join('')}</div>`,1)+row('Currency','Used for every amount',sel('scur',['INR','USD','EUR','GBP','AED','SGD','CAD','AUD'],S.cur,'data-change="cur"')))}
   ${sec('Family',mem+`<div class="srow"><div class="st"><input class="in-t plain" id="newm" placeholder="Add a family member"></div><div class="sc">${b('Add','madd')}</div></div>`)}
@@ -1117,6 +1124,7 @@ function wipeMember(id,removePerson){const m=S.members.find(x=>x.id===id);if(!m)
   if(removePerson&&S.members.length>1)S.members=S.members.filter(x=>x.id!==id);
   if(S.member===id||!S.members.some(x=>x.id===S.member))S.member='all';
   save();closeModal();settings();render();toast(`Deleted ${m.name}'s data`)}
+addEventListener('scroll',()=>{if(S.view!=='settings')return;const secs=[...document.querySelectorAll('.ssec')];let cur=secs[0];for(const x of secs)if(x.getBoundingClientRect().top<140)cur=x;if(cur)document.querySelectorAll('#tabs [data-sec]').forEach(b=>{if('s-'+b.dataset.sec===cur.id)b.setAttribute('aria-current','true');else b.removeAttribute('aria-current')})},{passive:true});
 function settings(){closeModal();S.view='settings';render();window.scrollTo(0,0)}
 
 /* ---------- events ---------- */
@@ -1140,8 +1148,8 @@ const A={
  xrow(e){const r=e.closest('.txr');if(!r)return;const o=!r.classList.contains('open');document.querySelectorAll('.txr.open').forEach(x=>{x.classList.remove('open');x.firstElementChild.setAttribute('aria-expanded','false')});if(o){r.classList.add('open');e.setAttribute('aria-expanded','true')}S.xo=o?e.dataset.id:null},
  fpanel(e){S.fp=!S.fp;const p=$('#fpan');if(p)p.classList.toggle('open',S.fp);e.setAttribute('aria-expanded',String(S.fp))},
  fchip(e){const l=e.dataset.k==='c'?S.fcats:S.faccts,v=e.dataset.v,i=l.indexOf(v);i<0?l.push(v):l.splice(i,1);txRefresh()},
- upview(){S.view='up';render();window.scrollTo(0,0)},theme(e){setTheme(e.dataset.v,e.currentTarget||e);setTimeout(()=>{if(S.view==='settings')render()},60)},ftype(e){S.ftype=e.dataset.v;txRefresh()},fclear(){S.fcats=[];S.faccts=[];S.ftype='all';S.q='';txRefresh()},sort(e){const k=e.dataset.v;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:-1};renderTxRows()},memwipe(){mwDialog()},mwgo(){const id=$('#mwm').value,rm=$('#mwr').checked;wipeMember(id,rm)},sgo(e){const s=document.getElementById(e.dataset.v);if(s)s.scrollIntoView({behavior:'smooth',block:'start'})},pgprev(){S.page--;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},pgnext(){S.page++;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},
- import(){$('#file').click()},add(){addTxDialog()},addhold(){holdForm()},settings(e){settings();const id=e&&e.dataset&&e.dataset.sec;if(id)setTimeout(()=>{const t=document.getElementById(id);if(t)t.scrollIntoView()},60)},close(){closeModal()},
+ sback(){S.view=S.back||'overview';render();window.scrollTo(0,0)},upview(){S.view='up';render();window.scrollTo(0,0)},theme(e){setTheme(e.dataset.v,e.currentTarget||e);setTimeout(()=>{if(S.view==='settings')render()},60)},ftype(e){S.ftype=e.dataset.v;txRefresh()},fclear(){S.fcats=[];S.faccts=[];S.ftype='all';S.q='';txRefresh()},sort(e){const k=e.dataset.v;S.sort=S.sort.k===k?{k,dir:-S.sort.dir}:{k,dir:-1};renderTxRows()},memwipe(){mwDialog()},mwgo(){const id=$('#mwm').value,rm=$('#mwr').checked;wipeMember(id,rm)},sgo(e){if(S.view!=='settings'){S.view='settings';render()}const s=document.getElementById(e.dataset.v);if(s)s.scrollIntoView({behavior:'smooth',block:'start'})},pgprev(){S.page--;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},pgnext(){S.page++;renderTxRows();$('#txrows').scrollIntoView({block:'start'})},
+ import(){$('#file').click()},add(){addTxDialog()},addhold(){holdForm()},settings(e){settings();const id=e&&e.dataset&&e.dataset.goto;if(id)setTimeout(()=>{const t=document.getElementById(id);if(t)t.scrollIntoView()},60)},close(){closeModal()},
  edithold(e){holdForm(S.hold.find(h=>h.id===e.dataset.id))},
  holdsave(e){const n=$('#hname').value.trim();if(!n)return toast('Give it a name');const o={name:n,type:$('#htype').value,m:$('#hm').value,invested:+$('#hinv').value||0,value:+$('#hval').value||+$('#hinv').value||0,fy:$('#hfy').value===''?undefined:+$('#hfy').value,maturity:$('#hmat').value||undefined};
   const id=e.dataset.id;if(id)Object.assign(S.hold.find(h=>h.id===id),o);else S.hold.push({id:uid(),...o});save();closeModal();render();toast('Saved')},

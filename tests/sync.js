@@ -33,7 +33,7 @@ const post = async (body) => { const r = await fetch(BASE + 'server/sync.php', {
   await a.click('[data-act=settings]'); await a.waitForSelector('.setp');
   ok(!(await a.$('[data-act=offlock]')), 'no Turn off passcode button');
   ok(!(await a.$('[data-v=s-accountsandcards]')) && !/Accounts and cards/.test(await a.textContent('.setp')), 'accounts and cards are no longer in Settings');
-  ok(await a.isVisible('.snav'), 'settings has a section list');
+  ok(await a.isVisible('#tabs [data-act=sgo]'), 'settings has a section list');
 
   console.log('Pagination');
   await loadDemo(a);
