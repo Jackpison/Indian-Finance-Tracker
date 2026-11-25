@@ -3,6 +3,8 @@
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Changed
+- Phones: amounts on the Transactions summary fit their cards, the page title and subtitle sit closer, and the period buttons share one row with the More menu.
 
 ## [0.9.2] - 2026-11-23
 ### Changed
