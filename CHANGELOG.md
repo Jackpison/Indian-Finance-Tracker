@@ -4,7 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 ### Changed
-- Phones: amounts on the Transactions summary fit their cards, the page title and subtitle sit closer, and the period buttons share one row with the More menu.
+- Phones: summary cards sit two per row (Overview, Portfolio, Investments, Recurring, Cards) and their amounts fit; Recurring keeps Name, Typical and Next due; the Transactions summary amounts fit their cards, the page title and subtitle sit closer, and the period buttons share one row with the More menu.
+- Overview: the Money in and out chart is taller so it fills its card beside the categories card (which lists five categories). Portfolio's page subtitle is shorter so it no longer cuts off. Updates has its own icon, and its setup text uses the full card width.
 
 ## [0.9.2] - 2026-11-23
 ### Changed
