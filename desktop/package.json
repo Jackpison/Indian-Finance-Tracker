@@ -1,7 +1,7 @@
 {
   "name": "portfolio-desktop",
   "productName": "Portfolio",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "private": true,
   "description": "Portfolio: a private money dashboard for Indian families, as a desktop app",
   "author": {
