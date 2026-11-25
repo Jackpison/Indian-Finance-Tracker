@@ -38,6 +38,10 @@ ok((await p.$$('#themebtn')).length===1&&!(await p.$('[data-theme-set]')),'one s
 const th=()=>p.evaluate(()=>document.documentElement.getAttribute('data-theme'));
 await p.click('#themebtn');await p.waitForTimeout(500);const t1=await th();await p.click('#themebtn');await p.waitForTimeout(500);const t2=await th();
 ok(['light','dark'].includes(t1)&&['light','dark'].includes(t2)&&t1!==t2,'button flips between light and dark ('+t1+' then '+t2+')');
+await p.click('[data-act=settings]');await p.waitForSelector('.setp');
+for(const [m,theme,sb] of [['tdark','dark','dark'],['tlight','light','light'],['dark','dark',null]]){await p.click('[data-act=theme][data-v='+m+']');await p.waitForTimeout(500);
+ const r=await p.evaluate(()=>[document.documentElement.getAttribute('data-theme'),document.documentElement.getAttribute('data-sb')]);ok(r[0]===theme&&r[1]===sb,'appearance '+m+' sets '+r.join('/'))}
+await p.click('[data-act=theme][data-v=light]');await p.waitForTimeout(400);
 console.log('Owner tags');
 for(const [v,sel] of [['tx','.txr .tg.own'],['bal','.lr .tg.own'],['inv','.tbl .tg.own']]){await p.click('#tabs [data-v='+v+']');await p.waitForTimeout(500);ok((await p.$$(sel)).length>0,'owner tag shown on '+v)}
 console.log('Bots and scrapers');

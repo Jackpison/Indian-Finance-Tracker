@@ -655,3 +655,16 @@ svg[aria-label=Breakdown]:hover{transform:scale(1.025)}
 @media(max-width:560px){.card.kpi.s3,.card.kpi.s4{grid-column:span 6}.kpi{padding:14px}.kpi .lbl{font-size:11px}.kpi .val{font-size:clamp(18px,6vw,24px)}.rtbl th:nth-child(2),.rtbl td:nth-child(2),.rtbl th:nth-child(4),.rtbl td:nth-child(4){display:none}}
 @media(max-width:560px){.grid>.s3:has(>.stat){grid-column:span 6}.rtbl{min-width:0}.rtbl td,.rtbl th{padding-left:6px;padding-right:6px}}
 @media(max-width:560px){.stat .sv{font-size:clamp(16px,4.9vw,22px)}}
+
+/* cards that are shorter than their row keep their own height */
+.card.fit{align-self:start}
+
+/* ---- total light / total dark: the sidebar matches the page (set with data-sb) ---- */
+@media(min-width:1100px){
+  :root[data-sb="dark"] .tabs{--fg:#E7EAEC;--muted:#98A1A8;--faint:#8D979E;--surface-2:#1a1e21;--line:#22272b;--accent-soft:rgba(123,167,255,.16);--accent:#7BA7FF;background:#0d1012;color:var(--fg)}
+  :root[data-sb="dark"] .tabs .navh{color:#8D979E}:root[data-sb="dark"] .tabs button{color:#98A1A8}
+  :root[data-sb="dark"] .tabs button:hover,:root[data-sb="dark"] .tabs button[aria-current=page]{color:#fff}
+  :root[data-sb="light"] .tabs{--fg:#12161A;--muted:#58636D;--faint:#566069;--surface-2:#EDF0F3;--line:#E3E7EB;--accent-soft:rgba(47,84,235,.10);--accent:#2F54EB;background:#fff;color:var(--fg)}
+  :root[data-sb="light"] .tabs .navh{color:#566069}:root[data-sb="light"] .tabs button{color:#58636D}
+  :root[data-sb="light"] .tabs button:hover,:root[data-sb="light"] .tabs button[aria-current=page]{color:#12161A}
+}

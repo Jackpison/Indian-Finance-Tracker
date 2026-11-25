@@ -3,6 +3,10 @@
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Added
+- Two more appearance modes, Total light and Total dark, where the sidebar matches the page. Light and Dark keep the half-and-half look (dark sidebar beside a light page, or the reverse). Pick one under Settings, General, Appearance, or from the search box; the sun and moon button flips within the family you chose.
+### Changed
+- Investments: the FY deposits card keeps its own height instead of stretching to match the taller cards beside it.
 
 ## [0.9.3] - 2026-11-25
 ### Changed
