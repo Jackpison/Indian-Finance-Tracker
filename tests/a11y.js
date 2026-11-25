@@ -19,7 +19,9 @@ const LIST = process.argv.includes('--list'), SEEN = new Map();
     await p.evaluate(t => { document.documentElement.setAttribute('data-theme', t); }, theme);
     console.log('Theme: ' + theme);
     for (const v of ['overview', 'bal', 'tx', 'cards', 'rec', 'inv', 'ana', 'vault', 'up', 'upd']) {
-      await p.click('#tabs [data-v=' + v + ']'); await p.waitForTimeout(500);
+      if (v === 'up') { await p.click('[data-act=settings]'); await p.waitForSelector('.setp'); await p.click('[data-act=upview]'); }
+      else await p.click('#tabs [data-v=' + v + ']');
+      await p.waitForTimeout(500);
       if (v === 'tx') await p.click('.bar .pill:has-text("All time")').catch(() => {});
       await scan(v);
     }

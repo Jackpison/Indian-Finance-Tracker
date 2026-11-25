@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 ### Changed
+- Side menu order is now Summary, Wealth, then Money. Uploads moved out of the menu into Settings (Backup and imports), and Install app moved from the menu footer into Settings (Sync and install). The sync status line stays in the footer and opens that section.
+- Settings redone: icon section titles, a roomier layout, and appearance picked from four small previews.
+- The family-member switcher now shows only on pages it filters (it was on every page).
+### Changed
 - Settings and Updates no longer show the family-member switcher, which did nothing there. Phones: each transaction is two tight lines, name and amount, then date and category.
 ### Added
 - Two more appearance modes, Total light and Total dark, where the sidebar matches the page. Light and Dark keep the half-and-half look (dark sidebar beside a light page, or the reverse). Pick one under Settings, General, Appearance, or from the search box; the sun and moon button flips within the family you chose.

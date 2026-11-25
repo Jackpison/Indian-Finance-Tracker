@@ -63,7 +63,7 @@ const mix=extra=>({format:'ift-backup-1',enc:false,data:{tx:[{id:'t1',d:'2024-03
 const restoreBk=async o=>{await p.click('[data-act=settings]');await p.waitForSelector('.setp');await p.click('[data-act=bkshow]');await p.fill('#bktxt',JSON.stringify(o));await p.click('[data-act=bkgo]');await p.waitForTimeout(1000)};
 const sampleStmt=path.join(ROOT,'samples/icici-style-statement.pdf');
 await restoreBk(mix([]));
-await p.click('.mem .pill:has-text("Everyone")');
+await p.click('#tabs [data-v=overview]');await p.click('.mem .pill:has-text("Everyone")');
 await p.setInputFiles('#file',sampleStmt);await p.waitForSelector('#imem',{timeout:30000});
 ok((await p.$eval('#imem',e=>e.value))==='','with Everyone selected the import asks who owns it instead of guessing the first person');
 await p.click('[data-act=stmtgo]');await p.waitForTimeout(400);
@@ -81,7 +81,7 @@ await p.click('#tabs [data-v=tx]');await p.click('.bar .pill:has-text("All time"
 const owners=await p.$$eval('.txr .tg.own',e=>e.map(x=>x.textContent.trim()));
 ok((await p.$$('.txr')).length===2&&owners.every(n=>n==='Asha'),'both transactions are kept and owned by the chosen person after the merge');
 await restoreBk(mix([{id:'a3',name:'ICICI Savings ••2444',type:'bank',member:'m1',bank:'ICICI',no:'2444'}]));
-await p.click('.mem .pill:has-text("Everyone")');
+await p.click('#tabs [data-v=overview]');await p.click('.mem .pill:has-text("Everyone")');
 await p.setInputFiles('#file',sampleStmt);await p.waitForSelector('#imem',{timeout:30000});
 ok((await p.$eval('#imem',e=>e.options[e.selectedIndex].text))==='Asha','the owner of the account already on file is preselected');
 await p.selectOption('#imem','m2');await p.click('[data-act=stmtgo]');await p.waitForTimeout(500);

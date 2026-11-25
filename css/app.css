@@ -678,3 +678,29 @@ svg[aria-label=Breakdown]:hover{transform:scale(1.025)}
   .tx .c{grid-column:2;grid-row:2;justify-self:end}
   .tx .c .tg{font-size:11px;padding:2px 8px}
 }
+
+/* ---- Settings, redone: icon section titles, roomier rows, appearance tiles ---- */
+.setl{grid-template-columns:210px minmax(0,1fr);gap:36px;max-width:1040px}
+.snav button{display:flex;align-items:center;gap:10px;padding:9px 12px}
+.snav button svg{flex:none;opacity:.7}
+.snav button:hover svg{opacity:1}
+.setp .ssec{margin-bottom:34px}
+.setp .ssec h3{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:650;letter-spacing:0;text-transform:none;color:var(--fg);margin:0 2px 10px}
+.setp .ssec h3 svg{box-sizing:content-box;padding:7px;border-radius:9px;background:var(--accent-soft);color:var(--accent)}
+.setp .scard{border-radius:16px;overflow:hidden}
+.setp .srow{padding:18px 22px}
+.setp .srow+.srow{border-top:1px solid var(--line)}
+.themes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;width:100%}
+.tt{display:flex;flex-direction:column;gap:3px;align-items:flex-start;text-align:left;padding:10px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:none;transition:border-color .2s,transform .2s,box-shadow .2s}
+.tt:hover{transform:translateY(-2px);border-color:var(--faint)}
+.tt[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.tt strong{font-size:13.5px;font-weight:600;margin-top:6px}.tt small{font-size:12px;color:var(--muted)}
+.tp{display:flex;width:100%;height:58px;border-radius:9px;overflow:hidden;box-shadow:0 0 0 1px rgba(128,128,128,.28)}
+.tp i{width:30%}.tp b{flex:1}
+.tp-light i{background:#0d1012}.tp-light b{background:#F4F6F9}
+.tp-dark i{background:#fff}.tp-dark b{background:#0a0c0d}
+.tp-tlight i{background:#fff}.tp-tlight b{background:#F4F6F9}
+.tp-tdark i{background:#0d1012}.tp-tdark b{background:#0a0c0d}
+.tp-tlight i{box-shadow:inset -1px 0 #E3E7EB}.tp-tdark i{box-shadow:inset -1px 0 #22272b}
+@media(max-width:900px){.setl{grid-template-columns:1fr;gap:16px}.snav span{white-space:nowrap}}
+@media(max-width:560px){.themes{grid-template-columns:repeat(2,minmax(0,1fr))}}
