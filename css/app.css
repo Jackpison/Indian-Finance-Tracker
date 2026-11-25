@@ -668,3 +668,13 @@ svg[aria-label=Breakdown]:hover{transform:scale(1.025)}
   :root[data-sb="light"] .tabs .navh{color:#566069}:root[data-sb="light"] .tabs button{color:#58636D}
   :root[data-sb="light"] .tabs button:hover,:root[data-sb="light"] .tabs button[aria-current=page]{color:#12161A}
 }
+
+/* ---- phones: each transaction is two tight lines (name and amount, then date and category) ---- */
+@media(max-width:700px){
+  .tx{grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:10px 4px}
+  .tx .ds{grid-column:1;grid-row:1}
+  .tx .a{grid-column:2;grid-row:1;align-self:start}
+  .tx .d{grid-column:1;grid-row:2;font-size:12px}
+  .tx .c{grid-column:2;grid-row:2;justify-self:end}
+  .tx .c .tg{font-size:11px;padding:2px 8px}
+}
