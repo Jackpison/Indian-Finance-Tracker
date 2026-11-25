@@ -3,6 +3,8 @@
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [0.9.3] - 2026-11-25
 ### Changed
 - Phones: summary cards sit two per row (Overview, Portfolio, Investments, Recurring, Cards) and their amounts fit; Recurring keeps Name, Typical and Next due; the Transactions summary amounts fit their cards, the page title and subtitle sit closer, and the period buttons share one row with the More menu.
 - Overview: the Money in and out chart is taller so it fills its card beside the categories card (which lists five categories). Portfolio's page subtitle is shorter so it no longer cuts off. Updates has its own icon, and its setup text uses the full card width.
