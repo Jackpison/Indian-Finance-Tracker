@@ -1,6 +1,6 @@
 (()=>{
 'use strict';
-const VERSION='0.9.5'; /* keep in sync with version.json and package.json: run scripts/bump.sh */
+const VERSION='0.9.6'; /* keep in sync with version.json and package.json: run scripts/bump.sh */
 const $=(s,r=document)=>r.querySelector(s);
 /* Neutralise spreadsheet formulas (=,+,-,@) and tabs/newlines in copied or exported cells. */
 const xcell=v=>{v=String(v??'').replace(/[\t\r\n]+/g,' ');return /^[=+\-@]/.test(v)?"'"+v:v};
@@ -258,7 +258,7 @@ function maskVal(v,kind){if(VK[kind])return v;const ch=[...String(v)],idx=ch.map
 const REV={};
 function vaultView(){
   const items=S.vault.filter(v=>S.member==='all'||v.m===S.member);
-  const head=`<div class="sec" style="margin-top:0"><div><h2>Vault</h2><div class="muted">Last 4 characters stay visible. Click Reveal to see the rest, or Copy to copy the full value. Never store a CVV or PIN here.</div></div><button class="btn sm primary" data-act="vadd">+ Add item</button></div>`;
+  const head=`<div class="sec" style="margin-top:0"><div><div class="muted">Last 4 characters stay visible. Click Reveal to see the rest, or Copy to copy the full value. Never store a CVV or PIN here.</div></div><button class="btn sm primary" data-act="vadd">+ Add item</button></div>`;
   if(!items.length)return head+`<div class="card empty"><p style="margin:0 0 12px"><b style="color:var(--fg)">Nothing saved yet.</b><br>Add cards, bank accounts, PAN, Aadhaar, demat, PRAN, policy numbers and UPI IDs for the whole family.</p><button class="btn primary" data-act="vadd">Add the first item</button></div>`;
   const by=S.members.map(m=>[m,items.filter(v=>v.m===m.id)]).filter(x=>x[1].length);
   return head+by.map(([m,list])=>`<div class="card" style="margin-bottom:14px"><h3><span style="display:flex;gap:8px;align-items:center"><span class="dot" style="--c:${m.color}"></span>${esc(m.name)}</span><span class="tag">${list.length} item${list.length>1?'s':''}</span></h3>${list.map(vItem).join('')}</div>`).join('')}
@@ -699,8 +699,8 @@ function cards(){const cs=S.accts.filter(a=>a.type==='card'&&(S.member==='all'||
   if(!rg)return empty('No data.');
   const tot=cs.map(c=>{const a=S.tx.filter(t=>t.acct===c.id);return{c,cur:within(a,rg.from,rg.to),prv:rg.pf?within(a,rg.pf,rg.pt):[]}});
   const T=tot.reduce((a,x)=>a+sums(x.cur).sp,0),Tp=tot.reduce((a,x)=>a+sums(x.prv).sp,0);
-  return`<div class="grid" style="margin-bottom:14px"><div class="card stat s3"><div class="sl">Card spending · ${esc(rg.label)}</div><div class="sv num">${tick(T)}</div><div class="ss">${rg.pf&&Tp?dChip(T,Tp,true)+' <span>vs previous period</span>':''}</div></div>
-   <div class="card stat s3"><div class="sl">Cards</div><div class="sv num">${cs.length}</div><div class="ss">${cs.map(c=>esc(c.name)).join(', ')}</div></div></div>
+  return`<div class="grid" style="margin-bottom:14px"><div class="card stat s6"><div class="sl">Card spending · ${esc(rg.label)}</div><div class="sv num">${tick(T)}</div><div class="ss">${rg.pf&&Tp?dChip(T,Tp,true)+' <span>vs previous period</span>':''}</div></div>
+   <div class="card stat s6"><div class="sl">Cards</div><div class="sv num">${cs.length}</div><div class="ss">${cs.map(c=>esc(c.name)).join(', ')}</div></div></div>
    <div class="cards">${tot.map(({c,cur,prv})=>{const sp=sums(cur).sp,spp=sums(prv).sp,cats=byCat(cur).slice(0,5),mx=cats[0]?cats[0][1]:1,mm=memOf(c.member);
      const lastM=bounds()&&S.tx.filter(t=>t.acct===c.id&&t.d.slice(0,7)===bounds().mx.slice(0,7));const used=lastM?sums(lastM).sp:0;
      return`<div class="card"><h3><span style="display:flex;gap:8px;align-items:center"><span class="dot" style="--c:${mm.color}"></span>${esc(c.name)}</span>${ownTag(c.member)}</h3>

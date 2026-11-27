@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.9.6] - 2026-11-27
+### Changed
+- Cards: the two summary cards are wide, so the row is no longer half empty. Vault: the page title is no longer repeated inside the page.
+
 ## [0.9.5] - 2026-11-25
 ### Changed
 - Settings sections (General, Family, Security, Sync and install, Backup and imports, Data tools, About, Danger zone) moved out of the page into the left menu. Pressing the gear at the top swaps the left menu to those sections, plus Updates and Import history, with a Back to app link; the current section highlights as you scroll. The main menu no longer carries Settings and Updates, so it is less crowded, and the Settings page is a single clean column with room to grow. On narrow screens the section list stays at the top of the page.
