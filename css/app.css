@@ -713,3 +713,11 @@ svg[aria-label=Breakdown]:hover{transform:scale(1.025)}
   .tabs button.sback:hover{color:var(--fg)}
   .tabs button[data-sec][aria-current]{background:var(--accent-soft);color:var(--fg)}
 }
+
+/* ---- Overview: Income and Spending fill the height of the net worth card beside them ---- */
+@media(min-width:700px){
+  .nwhero~.stat{display:flex;flex-direction:column}
+  .nwhero~.stat .sv{font-size:32px;margin:14px 0 8px}
+  .nwhero~.stat .ss{flex:1;flex-wrap:wrap;align-content:space-between;align-items:center;gap:8px 6px}
+  .nwhero~.stat .hatch{flex:0 0 100%;margin-top:0}
+}

@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.9.8] - 2026-11-27
+### Changed
+- Overview: the Income and Spending cards beside Net worth now fill its height, with larger amounts and the progress bar at the bottom, instead of leaving a blank gap.
+
 ## [0.9.7] - 2026-11-27
 ### Changed
 - Settings: the column of sections is centred on the page instead of sitting against the left menu with an empty right side.
