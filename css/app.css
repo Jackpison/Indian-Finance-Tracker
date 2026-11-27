@@ -707,7 +707,7 @@ svg[aria-label=Breakdown]:hover{transform:scale(1.025)}
 
 /* ---- Settings sections live in the left menu (desktop); the page itself is one wide column ---- */
 @media(min-width:1100px){
-  .setl{grid-template-columns:minmax(0,860px);max-width:none;gap:0}
+  .setl{grid-template-columns:minmax(0,860px);max-width:none;gap:0;justify-content:center}
   .setl>.snav{display:none}
   .tabs button.sback{color:var(--muted);margin-bottom:6px}
   .tabs button.sback:hover{color:var(--fg)}

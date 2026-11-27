@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.9.7] - 2026-11-27
+### Changed
+- Settings: the column of sections is centred on the page instead of sitting against the left menu with an empty right side.
+
 ## [0.9.6] - 2026-11-27
 ### Changed
 - Cards: the two summary cards are wide, so the row is no longer half empty. Vault: the page title is no longer repeated inside the page.
